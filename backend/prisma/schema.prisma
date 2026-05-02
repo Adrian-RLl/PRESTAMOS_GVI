@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+model Rol {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  usuarios Usuario[]
+}
+
+model Empresa {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  estado   Boolean   @default(true)
+  usuarios Usuario[]
+}
+
+model Gerencia {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  estado   Boolean   @default(true)
+  usuarios Usuario[]
+}
+
+model Area {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  estado   Boolean   @default(true)
+  usuarios Usuario[]
+}
+
+model Cargo {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  estado   Boolean   @default(true)
+  usuarios Usuario[]
+}
+
+model Sede {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  estado   Boolean   @default(true)
+  usuarios Usuario[]
+}
+
+model Usuario {
+  id             Int        @id @default(autoincrement())
+  nombre         String
+  correo         String     @unique
+  contraseña     String
+  activo         Boolean    @default(true)
+  rol_id         Int
+  rol            Rol        @relation(fields: [rol_id], references: [id])
+  
+  empresa_id     Int?
+  empresa        Empresa?    @relation(fields: [empresa_id], references: [id])
+  
+  gerencia_id    Int?
+  gerencia       Gerencia?   @relation(fields: [gerencia_id], references: [id])
+  
+  area_id        Int?
+  area           Area?       @relation(fields: [area_id], references: [id])
+  
+  cargo_id       Int?
+  cargo          Cargo?      @relation(fields: [cargo_id], references: [id])
+  
+  sede_id        Int?
+  sede           Sede?       @relation(fields: [sede_id], references: [id])
+
+  prestamos      Prestamo[]
+  fecha_creacion DateTime   @default(now())
+}
+
+model Activo {
+  id                 Int        @id @default(autoincrement())
+  codigo_patrimonial String     @unique
+  tipo               String
+  marca              String
+  modelo             String
+  serie              String
+  estado             String
+  ubicacion          String
+  observaciones      String?
+  prestamos          Prestamo[]
+}
+
+model Prestamo {
+  id               Int      @id @default(autoincrement())
+  usuario_id       Int
+  activo_id        Int
+  fecha_prestamo   DateTime
+  fecha_devolucion DateTime
+  estado           String
+  firma_digital    String?  @db.Text
+  firma_devolucion String?  @db.Text
+  usuario          Usuario  @relation(fields: [usuario_id], references: [id])
+  activo           Activo   @relation(fields: [activo_id], references: [id])
+}
