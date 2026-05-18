@@ -9,16 +9,29 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
-  @Roles(1, 2)
+  @Roles(1)
   @Post()
   create(@Body() createUsuarioDto: any) {
     return this.usuariosService.create(createUsuarioDto);
+  }
+
+  @Roles(1)
+  @Post('lote')
+  createBatch(@Body() createUsuarioDtos: any[]) {
+    // Necesitamos implementarlo en usuariosService
+    return this.usuariosService.createBatch(createUsuarioDtos);
   }
 
   @Roles(1, 2)
   @Get()
   findAll() {
     return this.usuariosService.findAll();
+  }
+
+  @Roles(1, 2)
+  @Get('dni/:dni')
+  findByDni(@Param('dni') dni: string) {
+    return this.usuariosService.findByDni(dni);
   }
 
   @Roles(1, 2)

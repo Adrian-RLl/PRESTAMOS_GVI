@@ -1,11 +1,13 @@
-import { IsInt, IsString, IsDateString, IsOptional } from 'class-validator';
+import { IsInt, IsString, IsDateString, IsOptional, IsArray, ArrayNotEmpty } from 'class-validator';
 
 export class CreatePrestamoDto {
   @IsInt()
   usuario_id: number;
 
-  @IsInt()
-  activo_id: number;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  activos_ids: number[];
 
   @IsDateString()
   fecha_prestamo: string;

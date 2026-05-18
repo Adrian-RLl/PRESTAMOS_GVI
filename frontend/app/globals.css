@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Forzar que los campos de formulario tengan texto oscuro,
+   ya que la mayoría tienen fondos blancos (bg-white / bg-slate-50)
+   y en modo oscuro del SO heredan texto blanco, haciéndolos invisibles. */
+input, select, textarea {
+  color: #0f172a !important; /* Tailwind text-slate-900 */
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important; /* Tailwind text-slate-400 */
+}

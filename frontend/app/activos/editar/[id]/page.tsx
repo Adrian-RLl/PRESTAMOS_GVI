@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import axios from 'axios';
-import { Save, X, PackagePlus, UploadCloud, Download } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import { Save, X, Edit } from 'lucide-react';
 import Link from 'next/link';
 
-import * as XLSX from 'xlsx';
-
-export default function NuevoActivo() {
+export default function EditarActivo() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id as string;
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [empresas, setEmpresas] = useState([]);
   const [formData, setFormData] = useState({
     tipo: '',
@@ -21,24 +22,45 @@ export default function NuevoActivo() {
     estado: 'Disponible',
     vigencia: '',
     empresa_id: '',
-    ubicacion: 'Almacén Principal',
+    ubicacion: '',
     observaciones: '',
     orden_compra: '',
   });
 
   useEffect(() => {
-    // Cargar empresas
-    const fetchEmpresas = async () => {
+    const fetchData = async () => {
+      if (!id) return;
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:3001/empresas', { headers: { Authorization: `Bearer ${token}` } });
-        setEmpresas(res.data);
+        const [empresasRes, activoRes] = await Promise.all([
+          api.get('/empresas'),
+          api.get(`/activos/${id}`)
+        ]);
+        
+        setEmpresas(empresasRes.data);
+        
+        const activo = activoRes.data;
+        setFormData({
+          tipo: activo.tipo || '',
+          marca: activo.marca || '',
+          modelo: activo.modelo || '',
+          serie: activo.serie || '',
+          condicion: activo.condicion || 'Nuevo',
+          estado: activo.estado || 'Disponible',
+          vigencia: activo.vigencia || '',
+          empresa_id: activo.empresa_id ? activo.empresa_id.toString() : '',
+          ubicacion: activo.ubicacion || '',
+          observaciones: activo.observaciones || '',
+          orden_compra: activo.orden_compra || '',
+        });
       } catch (err) {
-        console.error('Error cargando empresas:', err);
+        console.error('Error cargando datos:', err);
+        alert('Hubo un error al cargar el activo.');
+      } finally {
+        setFetching(false);
       }
     };
-    fetchEmpresas();
-  }, []);
+    fetchData();
+  }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,70 +70,34 @@ export default function NuevoActivo() {
     e.preventDefault();
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      // Asegurar tipos y enviar
       const payload = { ...formData, empresa_id: formData.empresa_id ? parseInt(formData.empresa_id) : null };
-      
-      await axios.post('http://localhost:3001/activos', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch(`/activos/${id}`, payload);
       router.push('/activos');
     } catch (error) {
-      console.error('Error al crear activo:', error);
-      alert('Hubo un error al crear el activo. Verifica tus permisos y los datos.');
+      console.error('Error al actualizar activo:', error);
+      alert('Hubo un error al actualizar el activo. Verifica tus permisos y los datos.');
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadTemplate = () => {
-    const ws_data = [
-      ["Tipo de Activo (Ej. Laptop, Celular)", "Marca", "Modelo", "Número de Serie (Debe ser único)", "Condición (Nuevo, Usado, Malogrado)", "Estado (Disponible, Asignado)", "Vigencia (Ej. 1 año)", "ID de Empresa", "Ubicación", "Observaciones"],
-      ["Laptop", "Lenovo", "ThinkPad T14", "PF3B1XYZ", "Nuevo", "Disponible", "3 años", "1", "Almacén Principal", "Ninguna"]
-    ];
-    
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    
-    // Ajustar anchos de columnas para que se vea bien
-    const wscols = [
-      {wch: 30}, // Tipo
-      {wch: 15}, // Marca
-      {wch: 20}, // Modelo
-      {wch: 35}, // Serie
-      {wch: 30}, // Condición
-      {wch: 25}, // Estado
-      {wch: 20}, // Vigencia
-      {wch: 15}, // ID Empresa
-      {wch: 25}, // Ubicación
-      {wch: 30}  // Observaciones
-    ];
-    ws['!cols'] = wscols;
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Plantilla_Activos");
-    
-    XLSX.writeFile(wb, "Plantilla_Carga_Masiva_Activos.xlsx");
-  };
+  if (fetching) {
+    return (
+      <div className="flex-1 flex justify-center items-center h-full min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 max-w-6xl mx-auto w-full pt-4 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 flex items-center gap-3">
-            <PackagePlus className="text-blue-600" size={32} />
-            Nuevo Activo
+            <Edit className="text-blue-600" size={32} />
+            Editar Activo
           </h1>
-          <p className="text-slate-500 mt-1">Registra un nuevo activo en el inventario o realiza una carga masiva.</p>
-        </div>
-        
-        <div className="flex flex-wrap gap-3">
-          <button onClick={downloadTemplate} type="button" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition-colors">
-            <Download size={18} /> Descargar Plantilla
-          </button>
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 border border-emerald-300 hover:bg-emerald-200 text-emerald-800 rounded-xl font-medium transition-colors cursor-pointer">
-            <UploadCloud size={18} /> Cargar Excel
-            <input type="file" className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
-          </label>
+          <p className="text-slate-500 mt-1">Modifica los detalles del activo seleccionado.</p>
         </div>
       </div>
 
@@ -131,6 +117,7 @@ export default function NuevoActivo() {
               <option value="Periferico">Periférico</option>
               <option value="Vehículo">Vehículo</option>
               <option value="Mobiliario">Mobiliario</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
 
@@ -212,7 +199,7 @@ export default function NuevoActivo() {
           </Link>
           <button type="submit" disabled={loading} className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20">
             {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Save size={18} />}
-            {loading ? 'Guardando...' : 'Guardar Activo'}
+            {loading ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
       </form>

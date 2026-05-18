@@ -11,7 +11,7 @@ const roles = [
   { id: 3, nombre: 'Usuario' }
 ];
 
-export default function UsuariosCatalog() {
+export default function PersonalCatalog() {
   const [data, setData] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,7 +62,7 @@ export default function UsuariosCatalog() {
   };
 
   const filteredData = data.filter(item => 
-    (item.rol_id === 1 || item.rol_id === 2) &&
+    item.rol_id === 3 &&
     (item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.correo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -137,14 +137,17 @@ export default function UsuariosCatalog() {
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-slate-800">Cuentas de Usuario</h2>
-        <button 
-          onClick={() => openModal()}
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Personal</h1>
+          <p className="text-slate-500 mt-1">Gestiona los empleados que recibirán equipos prestados</p>
+        </div>
+        <Link 
+          href="/personal/nuevo"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center space-x-2 transition-colors text-sm font-medium shadow-sm"
         >
           <Plus size={18} />
-          <span>Nuevo Usuario</span>
-        </button>
+          <span>Nuevo Personal</span>
+        </Link>
       </div>
 
       <div className="relative">
@@ -237,7 +240,7 @@ export default function UsuariosCatalog() {
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl my-8">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-3xl">
               <h3 className="font-bold text-xl text-slate-800">
-                {editingItem ? 'Editar Usuario' : 'Nuevo Usuario'}
+                {editingItem ? 'Editar Empleado' : 'Nuevo Empleado'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                 <X size={20} />
@@ -365,7 +368,7 @@ export default function UsuariosCatalog() {
                   type="submit" disabled={saving}
                   className="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors flex justify-center items-center space-x-2 disabled:opacity-70 shadow-md shadow-blue-500/20"
                 >
-                  {saving ? <span>Guardando...</span> : <><Check size={20} /><span>Guardar Usuario</span></>}
+                  {saving ? <span>Guardando...</span> : <><Check size={20} /><span>Guardar Cambios</span></>}
                 </button>
               </div>
             </form>

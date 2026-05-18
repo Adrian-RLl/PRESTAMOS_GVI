@@ -22,7 +22,7 @@ export class PdfService {
       doc.text(`Por el presente documento, la empresa hace entrega del siguiente activo al usuario ${prestamo.usuario.nombre} (${prestamo.usuario.correo}):`);
       doc.moveDown();
       
-      doc.text(`Código Patrimonial: ${prestamo.activo.codigo_patrimonial}`);
+      doc.text(`Número de Serie: ${prestamo.activo.serie}`);
       doc.text(`Tipo de Equipo: ${prestamo.activo.tipo}`);
       doc.text(`Marca: ${prestamo.activo.marca}`);
       doc.text(`Modelo: ${prestamo.activo.modelo}`);

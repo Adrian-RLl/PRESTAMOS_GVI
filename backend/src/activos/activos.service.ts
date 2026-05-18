@@ -13,8 +13,28 @@ export class ActivosService {
     });
   }
 
+  async createBatch(activos: CreateActivoDto[]) {
+    return this.prisma.activo.createMany({
+      data: activos,
+      skipDuplicates: true,
+    });
+  }
+
   async findAll() {
-    return this.prisma.activo.findMany();
+    return this.prisma.activo.findMany({
+      include: {
+        prestamos: {
+          where: { estado: 'Activo' },
+          include: { usuario: true }
+        }
+      }
+    });
+  }
+
+  async findBySerie(serie: string) {
+    return this.prisma.activo.findFirst({
+      where: { serie: serie }
+    });
   }
 
   async findOne(id: number) {

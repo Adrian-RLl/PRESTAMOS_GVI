@@ -7,6 +7,35 @@ export const api = axios.create({
   },
 });
 
+// Interceptor para agregar el token dinámicamente a cada petición
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+// Interceptor para manejar errores globalmente (ej. 401)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Evitamos reiniciar la página si el 401 proviene del intento de login
+      if (error.config && !error.config.url?.includes('/auth/login')) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface Activo {
   id: number;
   codigo_patrimonial: string;
@@ -17,6 +46,8 @@ export interface Activo {
   estado: string;
   ubicacion: string;
   observaciones?: string;
+  orden_compra?: string;
+  prestamos?: Prestamo[];
 }
 
 export interface EntidadBase {
@@ -33,6 +64,7 @@ export type Sede = EntidadBase;
 
 export interface Usuario {
   id: number;
+  dni?: string;
   nombre: string;
   correo: string;
   rol_id: number;

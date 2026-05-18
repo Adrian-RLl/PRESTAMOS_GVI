@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { ShieldCheck, Mail, Lock } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 
 export default function LoginPage() {
@@ -15,6 +15,28 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validaciones manuales para evitar el aviso por defecto del navegador
+    if (!correo.trim() && !password.trim()) {
+      setError('Por favor, ingresa tu correo electrónico y tu contraseña.');
+      return;
+    }
+    if (!correo.trim()) {
+      setError('El correo electrónico es obligatorio.');
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@vanguardfresh\.pe$/i;
+    if (!emailRegex.test(correo)) {
+      setError('Por favor, ingresa un correo corporativo válido (ej. usuario@vanguardfresh.pe).');
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('La contraseña es obligatoria.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -44,10 +66,14 @@ export default function LoginPage() {
           <p className="text-slate-400 mt-2">Ingresa a tu cuenta para continuar</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6" noValidate>
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">
-              {error}
+            <div className="bg-red-50/80 border-l-4 border-red-500 text-red-700 p-4 rounded-r-xl text-sm flex items-start shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+              <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0 text-red-500 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold text-red-800">Error de acceso</p>
+                <p className="mt-1">{error}</p>
+              </div>
             </div>
           )}
 
@@ -62,9 +88,12 @@ export default function LoginPage() {
                   type="email" 
                   value={correo}
                   onChange={(e) => setCorreo(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
-                  placeholder="usuario@vgi.com"
-                  required
+                  className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-white text-slate-900 outline-none transition-all ${
+                    error && !correo.trim() 
+                      ? 'border-red-400 focus:ring-2 focus:ring-red-500 focus:border-red-500' 
+                      : 'border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                  placeholder="usuario@vanguardfresh.pe"
                 />
               </div>
             </div>
@@ -79,9 +108,12 @@ export default function LoginPage() {
                   type="password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                  className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-white text-slate-900 outline-none transition-all ${
+                    error && !password.trim() && correo.trim()
+                      ? 'border-red-400 focus:ring-2 focus:ring-red-500 focus:border-red-500' 
+                      : 'border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   placeholder="••••••••"
-                  required
                 />
               </div>
             </div>

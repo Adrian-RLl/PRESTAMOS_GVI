@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 const mainNavItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Activos', href: '/activos', icon: Package },
+  { name: 'Personal', href: '/personal', icon: Users },
   { name: 'Préstamos', href: '/prestamos', icon: ClipboardList },
 ];
 

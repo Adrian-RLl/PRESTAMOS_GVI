@@ -1,46 +1,107 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Package, ClipboardList, ShieldCheck } from 'lucide-react';
+import { Package, ClipboardList, Users, CheckCircle, ShieldCheck, Plus } from 'lucide-react';
+import { KpiCard } from './components/Dashboard/KpiCard';
+import { AssetStatusChart } from './components/Dashboard/AssetStatusChart';
+import { RecentActivityTable } from './components/Dashboard/RecentActivityTable';
+import axios from 'axios';
 
 export default function Home() {
-  return (
-    <div className="flex-1 max-w-5xl mx-auto w-full pt-8">
-      <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 rounded-3xl p-10 md:p-16 text-white shadow-2xl relative overflow-hidden">
-        {/* Decoraciones de fondo */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-500 opacity-20 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-indigo-500 opacity-20 blur-3xl"></div>
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
         
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-sm font-medium mb-6">
-            <ShieldCheck size={16} className="text-emerald-400" />
-            <span>Sistema Seguro de VGI</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
-            Gestión de Préstamos y <br className="hidden md:block"/> Control de Activos
+        const response = await axios.get('http://localhost:3001/dashboard/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setStats(response.data);
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  return (
+    <div className="flex-1 max-w-7xl mx-auto w-full pt-4 pb-12">
+      {/* Header Area */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            Panel de Control <ShieldCheck className="text-emerald-400" size={28} />
           </h1>
-          <p className="text-blue-100 text-lg max-w-2xl mb-10 leading-relaxed">
-            Bienvenido al sistema unificado para la asignación y rastreo de recursos de la empresa. Control total, historial detallado y firmas digitales integradas.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-4 max-w-2xl">
-            <Link href="/activos" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-6 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-xl backdrop-blur-sm">
-              <div className="bg-blue-500 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Package size={24} className="text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">Inventario de Activos</h3>
-              <p className="text-blue-200 text-sm">Gestiona el stock, añade nuevos equipos y controla su ubicación actual.</p>
-            </Link>
-
-            <Link href="/prestamos" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-6 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-xl backdrop-blur-sm">
-              <div className="bg-indigo-500 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <ClipboardList size={24} className="text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">Préstamos</h3>
-              <p className="text-indigo-200 text-sm">Asigna activos a los usuarios con firma digital de responsabilidad.</p>
-            </Link>
-          </div>
+          <p className="text-slate-400 mt-1">Resumen general del sistema de activos VGI</p>
+        </div>
+        
+        <div className="flex gap-3">
+          <Link href="/activos/nuevo" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors">
+            <Plus size={18} /> Nuevo Activo
+          </Link>
+          <Link href="/prestamos/nuevo" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">
+            <ClipboardList size={18} /> Nuevo Préstamo
+          </Link>
         </div>
       </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      ) : stats ? (
+        <div className="space-y-6">
+          {/* KPIs Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <KpiCard 
+              title="Total Activos" 
+              value={stats.kpis.totalActivos} 
+              icon={Package} 
+              colorClass="border-blue-500/20"
+            />
+            <KpiCard 
+              title="Activos Asignados" 
+              value={stats.kpis.activosPrestados} 
+              icon={ClipboardList} 
+              colorClass="border-indigo-500/20"
+            />
+            <KpiCard 
+              title="Activos Disponibles" 
+              value={stats.kpis.activosDisponibles} 
+              icon={CheckCircle} 
+              colorClass="border-emerald-500/20"
+            />
+          </div>
+
+          {/* Charts and Tables Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 h-full">
+              <AssetStatusChart data={stats.distribucionActivos} />
+            </div>
+            <div className="lg:col-span-2 h-full">
+              <RecentActivityTable activities={stats.actividadReciente} />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
+          <ShieldCheck size={48} className="mx-auto text-slate-500 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Inicia sesión para ver tus estadísticas</h2>
+          <p className="text-slate-400">Debes estar autenticado para acceder al panel de control.</p>
+        </div>
+      )}
     </div>
   );
 }

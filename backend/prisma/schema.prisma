@@ -18,6 +18,7 @@ model Empresa {
   nombre   String
   estado   Boolean   @default(true)
   usuarios Usuario[]
+  activos  Activo[]
 }
 
 model Gerencia {
@@ -49,43 +50,59 @@ model Sede {
 }
 
 model Usuario {
-  id             Int        @id @default(autoincrement())
-  nombre         String
-  correo         String     @unique
-  contraseña     String
-  activo         Boolean    @default(true)
-  rol_id         Int
-  rol            Rol        @relation(fields: [rol_id], references: [id])
+  id               Int        @id @default(autoincrement())
+  dni              String?    @unique
+  nombre           String     // Mantendremos este como 'Nombre Completo'
+  nombres          String?
+  apellido_paterno String?
+  apellido_materno String?
+  correo           String     @unique // Este será 'Correo Empresa'
+  correo_personal  String?
+  telefono_personal String?
+  celular_personal String?
+  celular_empresa  String?
+  genero           String?
+  contraseña       String
+  activo           Boolean    @default(true)
+  rol_id           Int
+  rol              Rol        @relation(fields: [rol_id], references: [id])
   
-  empresa_id     Int?
-  empresa        Empresa?    @relation(fields: [empresa_id], references: [id])
+  empresa_id       Int?
+  empresa          Empresa?   @relation(fields: [empresa_id], references: [id])
   
-  gerencia_id    Int?
-  gerencia       Gerencia?   @relation(fields: [gerencia_id], references: [id])
+  gerencia_id      Int?
+  gerencia         Gerencia?  @relation(fields: [gerencia_id], references: [id])
   
-  area_id        Int?
-  area           Area?       @relation(fields: [area_id], references: [id])
+  area_id          Int?
+  area             Area?      @relation(fields: [area_id], references: [id])
   
-  cargo_id       Int?
-  cargo          Cargo?      @relation(fields: [cargo_id], references: [id])
+  cargo_id         Int?
+  cargo            Cargo?     @relation(fields: [cargo_id], references: [id])
   
-  sede_id        Int?
-  sede           Sede?       @relation(fields: [sede_id], references: [id])
+  sede_id          Int?
+  sede             Sede?      @relation(fields: [sede_id], references: [id])
 
-  prestamos      Prestamo[]
-  fecha_creacion DateTime   @default(now())
+  prestamos        Prestamo[]
+  fecha_creacion   DateTime   @default(now())
 }
 
 model Activo {
   id                 Int        @id @default(autoincrement())
-  codigo_patrimonial String     @unique
   tipo               String
   marca              String
   modelo             String
-  serie              String
-  estado             String
+  serie              String     @unique
+  estado             String // Disponible, Prestado, etc
+  condicion          String? // Nuevo, Usado, Malogrado
   ubicacion          String
   observaciones      String?
+  fecha_asignacion   DateTime?
+  vigencia           String?
+  
+  empresa_id         Int?
+  empresa            Empresa?   @relation(fields: [empresa_id], references: [id])
+  orden_compra       String?
+
   prestamos          Prestamo[]
 }
 

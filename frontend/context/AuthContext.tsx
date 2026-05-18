@@ -73,9 +73,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push('/login');
   };
 
+  const shouldRedirectToLogin = !isLoading && !token && pathname !== '/login';
+  const shouldRedirectToHome = !isLoading && token && pathname === '/login';
+  const showLoading = isLoading || shouldRedirectToLogin || shouldRedirectToHome;
+
   return (
     <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
-      {children}
+      {showLoading ? (
+        <div className="flex h-screen w-screen items-center justify-center bg-slate-50 fixed inset-0 z-50">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };

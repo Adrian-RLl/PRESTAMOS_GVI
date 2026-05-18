@@ -1,8 +1,6 @@
 import { IsString, IsOptional } from 'class-validator';
 
 export class CreateActivoDto {
-  @IsString()
-  codigo_patrimonial: string;
 
   @IsString()
   tipo: string;
@@ -25,4 +23,19 @@ export class CreateActivoDto {
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  @IsOptional()
+  @IsString()
+  condicion?: string;
+
+  @IsOptional()
+  @IsString()
+  vigencia?: string;
+
+  @IsOptional()
+  @IsString()
+  orden_compra?: string;
+
+  @IsOptional()
+  empresa_id?: number;
 }

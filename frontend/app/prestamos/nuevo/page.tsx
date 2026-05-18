@@ -1,154 +1,346 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, PenTool } from 'lucide-react';
-import Link from 'next/link';
-import SignatureCanvas from 'react-signature-canvas';
-import { api, Activo, Usuario } from '@/lib/api';
+import { Search, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { api, Activo, Usuario, EntidadBase } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
-export default function NuevoPrestamo() {
+export default function NuevaEntrega() {
   const router = useRouter();
-  const sigCanvas = useRef<SignatureCanvas>(null);
+  const { user } = useAuth();
+  
+  // Catalogs
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [empresas, setEmpresas] = useState<EntidadBase[]>([]);
+  const [areas, setAreas] = useState<EntidadBase[]>([]);
+  const [cargos, setCargos] = useState<EntidadBase[]>([]);
+  const [gerencias, setGerencias] = useState<EntidadBase[]>([]);
+  const [sedes, setSedes] = useState<EntidadBase[]>([]);
+
+  // Form State
+  const [dniBusqueda, setDniBusqueda] = useState('');
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('');
+  const [empresaId, setEmpresaId] = useState('');
+  const [gerenciaId, setGerenciaId] = useState('');
+  const [sedeId, setSedeId] = useState('');
+  const [areaId, setAreaId] = useState('');
+  const [cargoId, setCargoId] = useState('');
+  const [fechaEntrega, setFechaEntrega] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaDevolucion, setFechaDevolucion] = useState('');
+
+  // Assets State
+  const [serieBusqueda, setSerieBusqueda] = useState('');
+  const [activosAsignados, setActivosAsignados] = useState<Activo[]>([]);
   
   const [loading, setLoading] = useState(false);
-  const [activosDisponibles, setActivosDisponibles] = useState<Activo[]>([]);
-  // Usar input de número para usuario si no tienes un endpoint de listar usuarios aún
-  const [formData, setFormData] = useState({
-    usuario_id: '',
-    activo_id: '',
-    fecha_prestamo: new Date().toISOString().split('T')[0],
-    fecha_devolucion: ''
-  });
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Cargar solo activos en "Stock"
-    api.get('/activos').then(res => {
-      const stock = res.data.filter((a: Activo) => a.estado === 'Stock');
-      setActivosDisponibles(stock);
-    });
+    cargarCatalogos();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const clearSignature = () => {
-    sigCanvas.current?.clear();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (sigCanvas.current?.isEmpty()) {
-      alert("Por favor, proporcione una firma digital.");
-      return;
-    }
-
-    setLoading(true);
-    
-    // Obtener la firma en Base64
-    const firmaDigital = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
-
+  const cargarCatalogos = async () => {
     try {
-      await api.post('/prestamos', {
-        usuario_id: parseInt(formData.usuario_id),
-        activo_id: parseInt(formData.activo_id),
-        fecha_prestamo: new Date(formData.fecha_prestamo).toISOString(),
-        fecha_devolucion: new Date(formData.fecha_devolucion).toISOString(),
-        firma_digital: firmaDigital
-      });
-      router.push('/prestamos');
-    } catch (error) {
-      console.error(error);
-      alert('Error al registrar el préstamo');
+      setLoading(true);
+      const [resUsr, resEmp, resAre, resCar, resGer, resSed] = await Promise.all([
+        api.get('/usuarios'),
+        api.get('/empresas'),
+        api.get('/areas'),
+        api.get('/cargos'),
+        api.get('/gerencias'),
+        api.get('/sedes')
+      ]);
+      setUsuarios(resUsr.data);
+      setEmpresas(resEmp.data);
+      setAreas(resAre.data);
+      setCargos(resCar.data);
+      setGerencias(resGer.data);
+      setSedes(resSed.data);
+    } catch (err) {
+      console.error("Error al cargar catálogos", err);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto w-full pb-12">
-      <Link href="/prestamos" className="flex items-center text-slate-500 hover:text-indigo-600 mb-6 transition-colors">
-        <ArrowLeft size={20} className="mr-2" />
-        Volver a préstamos
-      </Link>
+  const buscarDni = async () => {
+    if (!dniBusqueda) return;
+    try {
+      const res = await api.get(`/usuarios/dni/${dniBusqueda}`);
+      if (res.data) {
+        const u = res.data;
+        setUsuarioSeleccionado(u.id.toString());
+        setEmpresaId(u.empresa_id?.toString() || '');
+        setGerenciaId(u.gerencia_id?.toString() || '');
+        setSedeId(u.sede_id?.toString() || '');
+        setAreaId(u.area_id?.toString() || '');
+        setCargoId(u.cargo_id?.toString() || '');
+        setError('');
+      } else {
+        setError('Usuario no encontrado con ese DNI');
+      }
+    } catch (err) {
+      setError('Usuario no encontrado con ese DNI');
+    }
+  };
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-8 border-b border-slate-100 bg-indigo-50/50">
-          <h1 className="text-2xl font-bold text-slate-800">Registrar Nuevo Préstamo</h1>
-          <p className="text-slate-500 mt-1">Asigna un activo a un usuario con su firma de conformidad</p>
+  const handleUsuarioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setUsuarioSeleccionado(id);
+    const u = usuarios.find(usr => usr.id.toString() === id);
+    if (u) {
+      setEmpresaId(u.empresa_id?.toString() || '');
+      setGerenciaId(u.gerencia_id?.toString() || '');
+      setSedeId(u.sede_id?.toString() || '');
+      setAreaId(u.area_id?.toString() || '');
+      setCargoId(u.cargo_id?.toString() || '');
+    }
+  };
+
+  const buscarActivo = async () => {
+    if (!serieBusqueda) return;
+    try {
+      const res = await api.get(`/activos/buscar/${serieBusqueda}`);
+      if (res.data) {
+        const activo = res.data;
+        if (activo.estado !== 'Stock') {
+          setError(`El activo ${activo.codigo_patrimonial} no está en Stock.`);
+          return;
+        }
+        if (activosAsignados.find(a => a.id === activo.id)) {
+          setError('El activo ya está en la lista.');
+          return;
+        }
+        setActivosAsignados([...activosAsignados, activo]);
+        setSerieBusqueda('');
+        setError('');
+      } else {
+        setError('Activo no encontrado');
+      }
+    } catch (err) {
+      setError('Activo no encontrado');
+    }
+  };
+
+  const quitarActivo = (id: number) => {
+    setActivosAsignados(activosAsignados.filter(a => a.id !== id));
+  };
+
+  const handleSiguiente = () => {
+    if (!usuarioSeleccionado) {
+      setError('Seleccione un usuario.');
+      return;
+    }
+    if (activosAsignados.length === 0) {
+      setError('Agregue al menos un activo.');
+      return;
+    }
+    if (!fechaDevolucion) {
+      setError('Especifique la fecha estimada de devolución.');
+      return;
+    }
+
+    // Guardar en sessionStorage para el paso 2
+    const prestamoData = {
+      usuario_id: usuarioSeleccionado,
+      activos: activosAsignados,
+      fecha_prestamo: fechaEntrega,
+      fecha_devolucion: fechaDevolucion
+    };
+    sessionStorage.setItem('nuevoPrestamo', JSON.stringify(prestamoData));
+    router.push('/prestamos/nuevo/firma');
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto w-full pb-12 bg-white rounded-xl shadow-sm border border-slate-200">
+      <div className="flex justify-between items-center p-4 bg-slate-500 text-white rounded-t-xl">
+        <h1 className="text-xl font-bold">Nueva Entrega</h1>
+        <button onClick={handleSiguiente} className="bg-white text-slate-700 px-4 py-1.5 rounded-lg font-medium text-sm hover:bg-slate-100 transition-colors">
+          Siguiente &gt;
+        </button>
+      </div>
+
+      <div className="p-6 space-y-8">
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">
+            {error}
+          </div>
+        )}
+
+        {/* Datos del Usuario */}
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Datos del usuario</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Buscar por DNI</label>
+              <div className="flex">
+                <input 
+                  type="text" 
+                  value={dniBusqueda} 
+                  onChange={(e) => setDniBusqueda(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && buscarDni()}
+                  placeholder="DNI"
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-l-md outline-none text-sm focus:border-slate-400"
+                />
+                <button onClick={buscarDni} className="bg-slate-500 text-white px-3 py-2 rounded-r-md hover:bg-slate-600 transition-colors">
+                  <Search size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="col-span-2 flex items-end">
+              <button onClick={cargarCatalogos} className="flex items-center space-x-2 bg-slate-500 text-white px-4 py-2 rounded-md text-sm hover:bg-slate-600 transition-colors">
+                <RefreshCw size={14} />
+                <span>Recargar listas seleccionables</span>
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Personal *</label>
+              <select value={usuarioSeleccionado} onChange={handleUsuarioChange} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none">
+                <option value="">- Seleccione -</option>
+                {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Empresa *</label>
+              <select value={empresaId} disabled className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500 appearance-none">
+                <option value="">- Seleccione -</option>
+                {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Gerencia *</label>
+              <select value={gerenciaId} disabled className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500 appearance-none">
+                <option value="">- Seleccione -</option>
+                {gerencias.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Sede *</label>
+              <select value={sedeId} disabled className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500 appearance-none">
+                <option value="">- Seleccione -</option>
+                {sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Area *</label>
+              <select value={areaId} disabled className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500 appearance-none">
+                <option value="">- Seleccione -</option>
+                {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Cargo *</label>
+              <select value={cargoId} disabled className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500 appearance-none">
+                <option value="">- Seleccione -</option>
+                {cargos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Columna Izquierda: Datos del Préstamo */}
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Datos de Asignación</h2>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Activo (Solo disponibles en Stock)</label>
-                <select required name="activo_id" value={formData.activo_id} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-white">
-                  <option value="" disabled>Seleccione un activo...</option>
-                  {activosDisponibles.map(a => (
-                    <option key={a.id} value={a.id}>{a.codigo_patrimonial} - {a.tipo} {a.marca}</option>
-                  ))}
-                </select>
-                {activosDisponibles.length === 0 && <p className="text-xs text-red-500 mt-1">No hay activos disponibles en Stock.</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">ID del Usuario Responsable</label>
-                <input required type="number" min="1" name="usuario_id" value={formData.usuario_id} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Ej. 1" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Fecha de Préstamo</label>
-                <input required type="date" name="fecha_prestamo" value={formData.fecha_prestamo} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Fecha Estimada de Devolución</label>
-                <input required type="date" name="fecha_devolucion" value={formData.fecha_devolucion} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-              </div>
+        {/* Datos del Gestor */}
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Datos del gestor</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Responsable *</label>
+              <input type="text" readOnly value={user?.nombre || ''} className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500" />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Area *</label>
+              <input type="text" readOnly value={user?.area?.nombre || ''} className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Cargo *</label>
+              <input type="text" readOnly value={user?.cargo?.nombre || ''} className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm outline-none text-slate-500" />
+            </div>
+          </div>
+        </div>
 
-            {/* Columna Derecha: Firma Digital */}
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Firma de Conformidad</h2>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                  <PenTool size={16} />
-                  Firma del Usuario
-                </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 relative overflow-hidden group">
-                  <SignatureCanvas 
-                    ref={sigCanvas} 
-                    canvasProps={{className: 'w-full h-64 cursor-crosshair'}} 
-                    penColor="black"
-                  />
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button type="button" onClick={clearSignature} className="bg-white text-slate-500 hover:text-red-500 px-3 py-1 rounded-lg text-sm shadow-sm border border-slate-200 font-medium">
-                      Limpiar
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500 mt-2">Dibuja la firma en el recuadro superior usando el ratón o la pantalla táctil.</p>
+        {/* Fecha */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Fecha de entrega</h2>
+            <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Fecha Est. Devolución *</h2>
+            <input type="date" value={fechaDevolucion} onChange={(e) => setFechaDevolucion(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-slate-500" />
+          </div>
+        </div>
+
+        {/* Activos */}
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Activos</h2>
+          <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
+            <div className="flex-1 max-w-lg">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Buscar activo por número de serie/IMEI (min. 4 carácteres) *</label>
+              <div className="flex">
+                <input 
+                  type="text" 
+                  value={serieBusqueda}
+                  onChange={(e) => setSerieBusqueda(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && buscarActivo()}
+                  placeholder="Serial number / IMEI1 activo"
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-l-md outline-none text-sm focus:border-slate-400"
+                />
+                <button onClick={buscarActivo} className="bg-slate-500 text-white px-3 py-2 rounded-r-md hover:bg-slate-600 transition-colors">
+                  <Search size={16} />
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-100 flex justify-end">
-            <button disabled={loading || activosDisponibles.length === 0} type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
-              {loading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                <Save size={20} />
-              )}
-              {loading ? 'Procesando...' : 'Confirmar Préstamo'}
-            </button>
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">
+                  <th className="p-3 w-10 text-center">Opc.</th>
+                  <th className="p-3">Activo</th>
+                  <th className="p-3">Marca/Modelo</th>
+                  <th className="p-3">Serie/IMEI</th>
+                  <th className="p-3 text-center">Condición</th>
+                  <th className="p-3">Observaciones de activo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activosAsignados.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-400 font-medium">Busca y agrega activos a la lista</td>
+                  </tr>
+                ) : (
+                  activosAsignados.map(a => (
+                    <tr key={a.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                      <td className="p-3 text-center">
+                        <button onClick={() => quitarActivo(a.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                      <td className="p-3 font-medium text-slate-700">{a.codigo_patrimonial} - {a.tipo}</td>
+                      <td className="p-3 text-slate-600">{a.marca} {a.modelo}</td>
+                      <td className="p-3 text-slate-600">{a.serie}</td>
+                      <td className="p-3 text-center">
+                        <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-md text-xs font-medium">{a.estado}</span>
+                      </td>
+                      <td className="p-3 text-slate-500 truncate max-w-[200px]">{a.observaciones || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        </form>
+        </div>
+      </div>
+      
+      <div className="p-4 bg-slate-50 border-t border-slate-200 rounded-b-xl flex justify-between items-center">
+        <button onClick={() => router.push('/prestamos')} className="px-6 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-lg text-sm font-medium transition-colors">
+          Cancelar
+        </button>
+        <button onClick={handleSiguiente} className="px-8 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+          Siguiente &gt;
+        </button>
       </div>
     </div>
   );

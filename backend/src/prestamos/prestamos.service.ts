@@ -18,59 +18,72 @@ export class PrestamosService {
   ) {}
 
   async create(createPrestamoDto: CreatePrestamoDto) {
-    const activo = await this.prisma.activo.findUnique({
-      where: { id: createPrestamoDto.activo_id },
+    const activos = await this.prisma.activo.findMany({
+      where: { id: { in: createPrestamoDto.activos_ids } },
     });
-    if (!activo || activo.estado !== 'Stock') {
-      throw new BadRequestException(
-        'El activo no está disponible para préstamo.',
-      );
+    
+    if (activos.length !== createPrestamoDto.activos_ids.length) {
+      throw new BadRequestException('Algunos activos no existen.');
     }
 
-    const prestamo = await this.prisma.$transaction(async (prisma) => {
-      const p = await prisma.prestamo.create({
-        data: {
-          usuario_id: createPrestamoDto.usuario_id,
-          activo_id: createPrestamoDto.activo_id,
-          fecha_prestamo: new Date(createPrestamoDto.fecha_prestamo),
-          fecha_devolucion: new Date(createPrestamoDto.fecha_devolucion),
-          estado: 'Activo',
-          firma_digital: createPrestamoDto.firma_digital,
-        },
-        include: {
-          usuario: true,
-          activo: true,
-        }
-      });
+    for (const activo of activos) {
+      if (activo.estado !== 'Disponible') {
+        throw new BadRequestException(
+          `El activo con Serie ${activo.serie} no está disponible para préstamo.`,
+        );
+      }
+    }
 
-      await prisma.activo.update({
-        where: { id: createPrestamoDto.activo_id },
-        data: { estado: 'Asignado' },
-      });
+    const resultados = await this.prisma.$transaction(async (prisma) => {
+      const creados: any[] = [];
+      for (const activo_id of createPrestamoDto.activos_ids) {
+        const p = await prisma.prestamo.create({
+          data: {
+            usuario_id: createPrestamoDto.usuario_id,
+            activo_id: activo_id,
+            fecha_prestamo: new Date(createPrestamoDto.fecha_prestamo),
+            fecha_devolucion: new Date(createPrestamoDto.fecha_devolucion),
+            estado: 'Activo',
+            firma_digital: createPrestamoDto.firma_digital,
+          },
+          include: {
+            usuario: true,
+            activo: true,
+          }
+        });
 
-      return p;
+        await prisma.activo.update({
+          where: { id: activo_id },
+          data: { estado: 'Asignado' },
+        });
+
+        creados.push(p);
+      }
+      return creados;
     });
 
     // Generar PDF y enviar correo en segundo plano
-    try {
-      const pdfBuffer = await this.pdfService.generateLoanPdf(prestamo);
-      await this.mailerService.sendMail({
-        to: prestamo.usuario.correo,
-        subject: `Acta de Préstamo - ${prestamo.activo.tipo} ${prestamo.activo.marca}`,
-        text: `Hola ${prestamo.usuario.nombre},\n\nAdjuntamos el acta de entrega del equipo ${prestamo.activo.tipo} (${prestamo.activo.codigo_patrimonial}) para tu firma de conocimiento.\n\nRecuerda que la fecha estimada de devolución es el ${new Date(prestamo.fecha_devolucion).toLocaleDateString()}.\n\nSaludos,\nEquipo VGI.`,
-        attachments: [
-          {
-            filename: `Acta_${prestamo.activo.codigo_patrimonial}.pdf`,
-            content: pdfBuffer,
-          }
-        ]
-      });
-      console.log('Correo enviado a', prestamo.usuario.correo);
-    } catch (err) {
-      console.error('Error al generar PDF o enviar correo', err);
+    for (const prestamo of resultados) {
+      try {
+        const pdfBuffer = await this.pdfService.generateLoanPdf(prestamo);
+        await this.mailerService.sendMail({
+          to: prestamo.usuario.correo,
+          subject: `Acta de Préstamo - ${prestamo.activo.tipo} ${prestamo.activo.marca}`,
+          text: `Hola ${prestamo.usuario.nombre},\n\nAdjuntamos el acta de entrega del equipo ${prestamo.activo.tipo} (S/N: ${prestamo.activo.serie}) para tu firma de conocimiento.\n\nRecuerda que la fecha estimada de devolución es el ${new Date(prestamo.fecha_devolucion).toLocaleDateString()}.\n\nSaludos,\nEquipo VGI.`,
+          attachments: [
+            {
+              filename: `Acta_${prestamo.activo.serie}.pdf`,
+              content: pdfBuffer,
+            }
+          ]
+        });
+        console.log('Correo enviado a', prestamo.usuario.correo);
+      } catch (err) {
+        console.error('Error al generar PDF o enviar correo', err);
+      }
     }
 
-    return prestamo;
+    return resultados;
   }
 
   async findAll() {
@@ -117,7 +130,7 @@ export class PrestamosService {
 
       await prisma.activo.update({
         where: { id: prestamo.activo_id },
-        data: { estado: 'Stock' },
+        data: { estado: 'Disponible' },
       });
 
       return updatedPrestamo;

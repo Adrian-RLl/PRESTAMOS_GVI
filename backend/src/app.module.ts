@@ -13,6 +13,7 @@ import { GerenciasModule } from './gerencias/gerencias.module';
 import { AreasModule } from './areas/areas.module';
 import { CargosModule } from './cargos/cargos.module';
 import { SedesModule } from './sedes/sedes.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SedesModule } from './sedes/sedes.module';
     AreasModule,
     CargosModule,
     SedesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
