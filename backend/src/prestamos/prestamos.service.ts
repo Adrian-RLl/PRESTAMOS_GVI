@@ -47,7 +47,14 @@ export class PrestamosService {
             firma_digital: createPrestamoDto.firma_digital,
           },
           include: {
-            usuario: true,
+            usuario: {
+              include: {
+                empresa: true,
+                area: true,
+                cargo: true,
+                sede: true,
+              }
+            },
             activo: true,
           }
         });
@@ -62,25 +69,24 @@ export class PrestamosService {
       return creados;
     });
 
-    // Generar PDF y enviar correo en segundo plano
-    for (const prestamo of resultados) {
-      try {
-        const pdfBuffer = await this.pdfService.generateLoanPdf(prestamo);
-        await this.mailerService.sendMail({
-          to: prestamo.usuario.correo,
-          subject: `Acta de Préstamo - ${prestamo.activo.tipo} ${prestamo.activo.marca}`,
-          text: `Hola ${prestamo.usuario.nombre},\n\nAdjuntamos el acta de entrega del equipo ${prestamo.activo.tipo} (S/N: ${prestamo.activo.serie}) para tu firma de conocimiento.\n\nRecuerda que la fecha estimada de devolución es el ${new Date(prestamo.fecha_devolucion).toLocaleDateString()}.\n\nSaludos,\nEquipo VGI.`,
-          attachments: [
-            {
-              filename: `Acta_${prestamo.activo.serie}.pdf`,
-              content: pdfBuffer,
-            }
-          ]
-        });
-        console.log('Correo enviado a', prestamo.usuario.correo);
-      } catch (err) {
-        console.error('Error al generar PDF o enviar correo', err);
-      }
+    // Generar un solo PDF consolidado y enviar un solo correo
+    try {
+      const pdfBuffer = await this.pdfService.generateLoanPdfMultiple(resultados);
+      const equiposList = resultados.map(p => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`).join('\n- ');
+      await this.mailerService.sendMail({
+        to: resultados[0].usuario.correo,
+        subject: `Acta de Entrega de Activos - ${resultados.length} equipo(s)`,
+        text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\nRecuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString()}.\n\nSaludos,\nEquipo VGI.`,
+        attachments: [
+          {
+            filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}.pdf`,
+            content: pdfBuffer,
+          }
+        ]
+      });
+      console.log('Correo consolidado enviado a', resultados[0].usuario.correo);
+    } catch (err) {
+      console.error('Error al generar PDF consolidado o enviar correo', err);
     }
 
     return resultados;
@@ -124,7 +130,8 @@ export class PrestamosService {
         where: { id },
         data: { 
           estado: 'Devuelto',
-          firma_devolucion 
+          firma_devolucion,
+          fecha_devolucion: new Date(),
         },
       });
 
@@ -193,6 +200,7 @@ export class PrestamosService {
           data: {
             estado: 'Devuelto',
             firma_devolucion,
+            fecha_devolucion: new Date(),
           },
         });
         await prisma.activo.update({
@@ -222,11 +230,35 @@ export class PrestamosService {
 
   async getLoanPdf(id: number) {
     const prestamo = await this.findOne(id);
-    return this.pdfService.generateLoanPdf(prestamo);
+    // Buscar todos los préstamos del mismo usuario con la misma fecha de entrega
+    const related = await this.prisma.prestamo.findMany({
+      where: {
+        usuario_id: prestamo.usuario_id,
+        fecha_prestamo: prestamo.fecha_prestamo,
+        firma_digital: prestamo.firma_digital ? { not: null } : undefined,
+      },
+      include: {
+        usuario: { include: { empresa: true, area: true, cargo: true, sede: true } },
+        activo: true,
+      },
+    });
+    return this.pdfService.generateLoanPdfMultiple(related.length > 0 ? related : [prestamo]);
   }
 
   async getReturnPdf(id: number) {
     const prestamo = await this.findOne(id);
-    return this.pdfService.generateReturnPdf(prestamo);
+    // Buscar todos los préstamos devueltos del mismo usuario con la misma firma de devolución
+    const related = await this.prisma.prestamo.findMany({
+      where: {
+        usuario_id: prestamo.usuario_id,
+        estado: 'Devuelto',
+        firma_devolucion: prestamo.firma_devolucion ? prestamo.firma_devolucion : undefined,
+      },
+      include: {
+        usuario: { include: { empresa: true, area: true, cargo: true, sede: true } },
+        activo: true,
+      },
+    });
+    return this.pdfService.generateReturnPdfMultiple(related.length > 0 ? related : [prestamo]);
   }
 }

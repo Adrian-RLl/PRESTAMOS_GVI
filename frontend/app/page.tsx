@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, ClipboardList, Users, CheckCircle, ShieldCheck, Plus } from 'lucide-react';
 import { KpiCard } from './components/Dashboard/KpiCard';
@@ -10,24 +11,39 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, token, isLoading } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/dashboard/stats');
-        setStats(response.data);
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!isLoading && !token) {
+      router.replace('/login');
+      return;
+    }
 
-    fetchStats();
-  }, []);
+    if (!isLoading && token) {
+      const fetchStats = async () => {
+        try {
+          const response = await api.get('/dashboard/stats');
+          setStats(response.data);
+        } catch (error) {
+          console.error('Error fetching dashboard stats:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchStats();
+    }
+  }, [isLoading, token, router]);
+
+  if (isLoading || !token) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 max-w-7xl mx-auto w-full pt-4 pb-12">
