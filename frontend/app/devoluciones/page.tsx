@@ -25,6 +25,18 @@ export default function DevolucionesPage() {
     }
   };
 
+  const handleDownloadPdf = async (prestamoId: number) => {
+    try {
+      const res = await api.get(`/prestamos/${prestamoId}/pdf-devolucion`, { responseType: 'blob' });
+      const file = new Blob([res.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+    } catch (err) {
+      console.error("Error al descargar PDF de devolución", err);
+      alert("No se pudo descargar el acta de devolución.");
+    }
+  };
+
   useEffect(() => {
     Promise.resolve().then(() => {
       fetchPrestamos();
@@ -120,14 +132,12 @@ export default function DevolucionesPage() {
                       </span>
                     </td>
                     <td className="p-4 text-right font-medium">
-                      <a 
-                        href={`http://localhost:3001/prestamos/${prestamo.id}/pdf-devolucion`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button 
+                        onClick={() => handleDownloadPdf(prestamo.id)}
                         className="px-3 py-2 text-sm bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg transition-colors inline-flex items-center gap-1 font-medium border border-slate-200"
                       >
                         Ver Acta
-                      </a>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -140,3 +150,4 @@ export default function DevolucionesPage() {
     </div>
   );
 }
+

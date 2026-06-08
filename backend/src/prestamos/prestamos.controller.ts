@@ -79,6 +79,15 @@ export class PrestamosController {
   }
 
   @Roles(1, 2)
+  @Post('devolver-lote')
+  devolverLote(
+    @Body('prestamos_ids') prestamosIds: number[],
+    @Body('firma_devolucion') firma_devolucion: string,
+  ) {
+    return this.prestamosService.devolverLote(prestamosIds, firma_devolucion);
+  }
+
+  @Roles(1, 2)
   @Post(':id/devolver')
   devolver(
     @Param('id') id: string,
