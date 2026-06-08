@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { api, Usuario, EntidadBase } from '@/lib/api';
 import { Plus, Edit2, Trash2, X, Check, Search, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const roles = [
   { id: 1, nombre: 'Administrador' },
@@ -12,6 +14,15 @@ const roles = [
 ];
 
 export default function UsuariosCatalog() {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.rol_id !== 1)) {
+      router.replace('/');
+    }
+  }, [user, isLoading, router]);
+
   const [data, setData] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -6,25 +6,18 @@ import { Package, ClipboardList, Users, CheckCircle, ShieldCheck, Plus } from 'l
 import { KpiCard } from './components/Dashboard/KpiCard';
 import { AssetStatusChart } from './components/Dashboard/AssetStatusChart';
 import { RecentActivityTable } from './components/Dashboard/RecentActivityTable';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-        
-        const response = await axios.get('http://localhost:3001/dashboard/stats', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
+        const response = await api.get('/dashboard/stats');
         setStats(response.data);
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
@@ -47,14 +40,16 @@ export default function Home() {
           <p className="text-slate-400 mt-1">Resumen general del sistema de activos VGI</p>
         </div>
         
-        <div className="flex gap-3">
-          <Link href="/activos/nuevo" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors">
-            <Plus size={18} /> Nuevo Activo
-          </Link>
-          <Link href="/prestamos/nuevo" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">
-            <ClipboardList size={18} /> Nuevo Préstamo
-          </Link>
-        </div>
+        {user && user.rol_id !== 3 && (
+          <div className="flex gap-3">
+            <Link href="/activos/nuevo" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors">
+              <Plus size={18} /> Nuevo Activo
+            </Link>
+            <Link href="/prestamos/nuevo" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">
+              <ClipboardList size={18} /> Nueva Entrega
+            </Link>
+          </div>
+        )}
       </div>
 
       {loading ? (

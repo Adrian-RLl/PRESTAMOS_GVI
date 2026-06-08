@@ -22,6 +22,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const PUBLIC_PATHS = ['/login', '/recuperar', '/restablecer-contrasena'];
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<Usuario | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -45,12 +47,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Redirigir a login si no hay sesión y no estamos en la página de login
+    // Redirigir a login si no hay sesión y no estamos en una página pública
     if (!isLoading) {
-      if (!token && pathname !== '/login') {
-        router.push('/login');
+      const isPublicPath = PUBLIC_PATHS.includes(pathname || '');
+      if (!token && !isPublicPath) {
+        router.replace('/login');
       } else if (token && pathname === '/login') {
-        router.push('/');
+        router.replace('/');
       }
     }
   }, [token, pathname, isLoading, router]);
@@ -73,7 +76,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push('/login');
   };
 
-  const shouldRedirectToLogin = !isLoading && !token && pathname !== '/login';
+  const isPublicPath = PUBLIC_PATHS.includes(pathname || '');
+  const shouldRedirectToLogin = !isLoading && !token && !isPublicPath;
   const shouldRedirectToHome = !isLoading && token && pathname === '/login';
   const showLoading = isLoading || shouldRedirectToLogin || shouldRedirectToHome;
 

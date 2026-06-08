@@ -9,7 +9,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class SedesController {
   constructor(private readonly sedesService: SedesService) {}
 
-  @Roles(1, 2)
+  @Roles(1)
   @Post()
   create(@Body() createDto: any) {
     return this.sedesService.create(createDto);
@@ -27,13 +27,13 @@ export class SedesController {
     return this.sedesService.findOne(+id);
   }
 
-  @Roles(1, 2)
+  @Roles(1)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateDto: any) {
     return this.sedesService.update(+id, updateDto);
   }
 
-  @Roles(1, 2)
+  @Roles(1)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.sedesService.remove(+id);

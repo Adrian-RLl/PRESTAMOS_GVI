@@ -38,7 +38,6 @@ api.interceptors.response.use(
 
 export interface Activo {
   id: number;
-  codigo_patrimonial: string;
   tipo: string;
   marca: string;
   modelo: string;
@@ -92,6 +91,7 @@ export interface Prestamo {
   fecha_devolucion: string;
   estado: string;
   firma_digital?: string;
+  firma_devolucion?: string;
   usuario?: Usuario;
   activo?: Activo;
 }

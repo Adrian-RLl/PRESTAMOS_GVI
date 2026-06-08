@@ -9,7 +9,7 @@ interface Activity {
     nombre: string;
   };
   activo: {
-    codigo_patrimonial: string;
+    serie: string;
     tipo: string;
     marca: string;
   };
@@ -54,7 +54,7 @@ export function RecentActivityTable({ activities }: RecentActivityTableProps) {
                   <td className="py-4 text-white font-medium">{activity.usuario.nombre}</td>
                   <td className="py-4">
                     <div className="text-white">{activity.activo.tipo}</div>
-                    <div className="text-xs text-slate-400">{activity.activo.codigo_patrimonial}</div>
+                    <div className="text-xs text-slate-400">S/N: {activity.activo.serie}</div>
                   </td>
                   <td className="py-4 text-slate-300 text-sm">
                     {new Date(activity.fecha_prestamo).toLocaleDateString()}

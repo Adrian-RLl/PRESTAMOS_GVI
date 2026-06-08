@@ -3,14 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, ClipboardList, Users, LogOut, Menu, X, Settings } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, Users, LogOut, Menu, X, Settings, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const mainNavItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Activos', href: '/activos', icon: Package },
   { name: 'Personal', href: '/personal', icon: Users },
-  { name: 'Préstamos', href: '/prestamos', icon: ClipboardList },
+  { name: 'Entregas', href: '/prestamos', icon: ClipboardList },
+  { name: 'Devoluciones', href: '/devoluciones', icon: RotateCcw },
 ];
 
 const maintenanceItems = [
@@ -22,11 +23,12 @@ export default function Sidebar() {
   const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  // No mostrar sidebar en login
-  if (pathname === '/login') return null;
+  // No mostrar sidebar en páginas públicas (login, recuperar, restablecer)
+  const PUBLIC_PATHS = ['/login', '/recuperar', '/restablecer-contrasena'];
+  if (PUBLIC_PATHS.includes(pathname || '')) return null;
 
-  // Solo Administrador (1) y Analista TI (2) ven Mantenimiento
-  const canViewMaintenance = user && (user.rol_id === 1 || user.rol_id === 2);
+  // Solo Administrador (1) ve Mantenimiento
+  const canViewMaintenance = user && user.rol_id === 1;
   const navItems = canViewMaintenance ? [...mainNavItems, ...maintenanceItems] : mainNavItems;
 
   return (
@@ -51,8 +53,11 @@ export default function Sidebar() {
 
       {/* Sidebar principal */}
       <div className={`fixed md:static inset-y-0 left-0 z-40 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out w-64 bg-slate-900 text-white min-h-screen flex flex-col shadow-xl`}>
-        <div className="p-6 mt-12 md:mt-0">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+        <div className="flex flex-col items-center justify-center text-center p-6 mt-12 md:mt-0 border-b border-slate-800/40 pb-6 mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-center p-2.5 shadow-lg mb-3 hover:scale-105 transition-transform duration-300 ease-in-out flex-shrink-0 cursor-pointer">
+            <img src="/favicon.ico" alt="Vanguard Logo" className="w-11 h-11 object-contain" />
+          </div>
+          <h1 className="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 via-indigo-300 to-indigo-400 bg-clip-text text-transparent">
             VGI Préstamos
           </h1>
         </div>

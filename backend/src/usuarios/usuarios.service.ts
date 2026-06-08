@@ -89,40 +89,82 @@ export class UsuariosService {
   }
 
   async createBatch(dataArray: any[]) {
-    // Hash contraseñas para todos los usuarios en el batch
-    const hashedDataArray = await Promise.all(
+    // Resolviendo nombres de catálogos a IDs correspondientes
+    const resolvedDataArray = await Promise.all(
       dataArray.map(async (data) => {
-        const hash = data.contraseña ? await bcrypt.hash(data.contraseña, 10) : await bcrypt.hash('123456', 10);
+        let empresa_id: number | null = null;
+        let gerencia_id: number | null = null;
+        let sede_id: number | null = null;
+        let area_id: number | null = null;
+        let cargo_id: number | null = null;
+
+        // Buscar IDs por nombre en Prisma
+        if (data.empresa) {
+          const res = await this.prisma.empresa.findFirst({ where: { nombre: data.empresa } });
+          if (res) empresa_id = res.id;
+        } else if (data.empresa_id) {
+          empresa_id = Number(data.empresa_id);
+        }
+
+        if (data.gerencia) {
+          const res = await this.prisma.gerencia.findFirst({ where: { nombre: data.gerencia } });
+          if (res) gerencia_id = res.id;
+        } else if (data.gerencia_id) {
+          gerencia_id = Number(data.gerencia_id);
+        }
+
+        if (data.sede) {
+          const res = await this.prisma.sede.findFirst({ where: { nombre: data.sede } });
+          if (res) sede_id = res.id;
+        } else if (data.sede_id) {
+          sede_id = Number(data.sede_id);
+        }
+
+        if (data.area) {
+          const res = await this.prisma.area.findFirst({ where: { nombre: data.area } });
+          if (res) area_id = res.id;
+        } else if (data.area_id) {
+          area_id = Number(data.area_id);
+        }
+
+        if (data.cargo) {
+          const res = await this.prisma.cargo.findFirst({ where: { nombre: data.cargo } });
+          if (res) cargo_id = res.id;
+        } else if (data.cargo_id) {
+          cargo_id = Number(data.cargo_id);
+        }
+
+        const nombreCompleto = data.nombre || `${data.nombres || ''} ${data.apellido_paterno || ''} ${data.apellido_materno || ''}`.trim();
+        const hash = data.contraseña ? await bcrypt.hash(data.contraseña, 10) : await bcrypt.hash(data.dni || '123456', 10);
+
         return {
-          dni: data.dni,
-          nombre: data.nombre,
-          nombres: data.nombres,
-          apellido_paterno: data.apellido_paterno,
-          apellido_materno: data.apellido_materno,
+          dni: data.dni ? String(data.dni) : null,
+          nombre: nombreCompleto,
+          nombres: data.nombres || null,
+          apellido_paterno: data.apellido_paterno || null,
+          apellido_materno: data.apellido_materno || null,
           correo: data.correo,
-          correo_personal: data.correo_personal,
-          telefono_personal: data.telefono_personal,
-          celular_personal: data.celular_personal,
-          celular_empresa: data.celular_empresa,
-          genero: data.genero,
+          correo_personal: data.correo_personal || null,
+          telefono_personal: data.telefono_personal || null,
+          celular_personal: data.celular_personal || null,
+          celular_empresa: data.celular_empresa || null,
+          genero: data.genero || null,
           contraseña: hash,
-          rol_id: data.rol_id || 2, // Por defecto rol 2 (Usuario)
-          empresa_id: data.empresa_id,
-          area_id: data.area_id,
-          cargo_id: data.cargo_id,
-          gerencia_id: data.gerencia_id,
-          sede_id: data.sede_id,
+          rol_id: data.rol_id || 3, // Rol Personal (Usuario normal) por defecto
+          empresa_id,
+          gerencia_id,
+          sede_id,
+          area_id,
+          cargo_id,
           activo: data.activo !== undefined ? data.activo : true,
         };
       })
     );
 
-    // Omitimos validaciones exhaustivas de email/DNI en bulk insert para evitar cuellos de botella, 
-    // pero Prisma lanzará error si hay duplicados en unique constraints.
     try {
       const result = await this.prisma.usuario.createMany({
-        data: hashedDataArray,
-        skipDuplicates: true, // Salta los que ya existen por DNI o Correo
+        data: resolvedDataArray,
+        skipDuplicates: true, // Salta duplicados de DNI o Correo
       });
       return { success: true, count: result.count };
     } catch (error) {
@@ -131,6 +173,22 @@ export class UsuariosService {
   }
 
   async update(id: number, data: any) {
+    // Verificar si el correo ya existe en otro usuario
+    if (data.correo) {
+      const existing = await this.findByEmail(data.correo);
+      if (existing && existing.id !== id) {
+        throw new BadRequestException('El correo ya está en uso por otro usuario corporativo.');
+      }
+    }
+
+    // Verificar si el DNI ya existe en otro usuario
+    if (data.dni) {
+      const existingDni = await this.findByDni(data.dni);
+      if (existingDni && existingDni.id !== id) {
+        throw new BadRequestException('El DNI ya está en uso por otro usuario.');
+      }
+    }
+
     const updateData: any = { ...data };
     
     if (data.contraseña) {

@@ -14,4 +14,14 @@ export class AuthController {
   login(@Body() body: { correo: string; contraseña: string }) {
     return this.authService.login(body.correo, body.contraseña);
   }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() body: { correo: string }) {
+    return this.authService.forgotPassword(body.correo);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() body: { token: string; contrasena: string }) {
+    return this.authService.resetPassword(body.token, body.contrasena);
+  }
 }

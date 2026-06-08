@@ -137,6 +137,74 @@ export class PrestamosService {
     });
   }
 
+  async findActiveByUserDni(dni: string) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { dni },
+    });
+    if (!usuario) {
+      throw new NotFoundException(`Usuario con DNI ${dni} no encontrado`);
+    }
+    return this.prisma.prestamo.findMany({
+      where: {
+        usuario_id: usuario.id,
+        estado: 'Activo',
+      },
+      include: {
+        activo: true,
+        usuario: {
+          include: {
+            empresa: true,
+            area: true,
+            cargo: true,
+            sede: true,
+          }
+        }
+      },
+    });
+  }
+
+  async devolverLote(prestamosIds: number[], firma_devolucion: string) {
+    if (!prestamosIds || prestamosIds.length === 0) {
+      throw new BadRequestException('Debe seleccionar al menos un préstamo.');
+    }
+    if (!firma_devolucion) {
+      throw new BadRequestException('Se requiere la firma de devolución.');
+    }
+
+    const prestamos = await this.prisma.prestamo.findMany({
+      where: { id: { in: prestamosIds } },
+    });
+
+    if (prestamos.length !== prestamosIds.length) {
+      throw new BadRequestException('Algunos préstamos no existen.');
+    }
+
+    for (const p of prestamos) {
+      if (p.estado === 'Devuelto') {
+        throw new BadRequestException(`El préstamo con ID ${p.id} ya fue devuelto.`);
+      }
+    }
+
+    return this.prisma.$transaction(async (prisma) => {
+      const resultados: any[] = [];
+      for (const p of prestamos) {
+        const updated = await prisma.prestamo.update({
+          where: { id: p.id },
+          data: {
+            estado: 'Devuelto',
+            firma_devolucion,
+          },
+        });
+        await prisma.activo.update({
+          where: { id: p.activo_id },
+          data: { estado: 'Disponible' },
+        });
+        resultados.push(updated);
+      }
+      return resultados;
+    });
+  }
+
   async update(id: number, updatePrestamoDto: UpdatePrestamoDto) {
     await this.findOne(id);
     return this.prisma.prestamo.update({
@@ -150,5 +218,15 @@ export class PrestamosService {
     return this.prisma.prestamo.delete({
       where: { id },
     });
+  }
+
+  async getLoanPdf(id: number) {
+    const prestamo = await this.findOne(id);
+    return this.pdfService.generateLoanPdf(prestamo);
+  }
+
+  async getReturnPdf(id: number) {
+    const prestamo = await this.findOne(id);
+    return this.pdfService.generateReturnPdf(prestamo);
   }
 }

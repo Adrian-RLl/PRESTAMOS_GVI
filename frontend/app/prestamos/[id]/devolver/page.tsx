@@ -6,10 +6,19 @@ import { ArrowLeft, Save, PenTool } from 'lucide-react';
 import Link from 'next/link';
 import SignatureCanvas from 'react-signature-canvas';
 import { api, Prestamo } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DevolverPrestamo() {
   const router = useRouter();
   const params = useParams();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.rol_id === 3)) {
+      router.replace('/prestamos');
+    }
+  }, [user, isLoading, router]);
+
   const sigCanvas = useRef<SignatureCanvas>(null);
   
   const [loading, setLoading] = useState(false);
@@ -52,9 +61,10 @@ export default function DevolverPrestamo() {
       });
       alert("Devolución registrada exitosamente.");
       router.push('/prestamos');
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || 'Error al procesar la devolución');
+      const errMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Error al procesar la devolución';
+      alert(errMessage);
     } finally {
       setLoading(false);
     }
@@ -93,7 +103,7 @@ export default function DevolverPrestamo() {
                 <div>
                   <p className="text-sm font-medium text-slate-500">Equipo a devolver</p>
                   <p className="font-semibold text-slate-800">{prestamo.activo?.tipo} {prestamo.activo?.marca} {prestamo.activo?.modelo}</p>
-                  <p className="text-sm text-slate-600">Código: {prestamo.activo?.codigo_patrimonial}</p>
+                  <p className="text-sm text-slate-600">Serie: {prestamo.activo?.serie}</p>
                 </div>
 
                 <div>

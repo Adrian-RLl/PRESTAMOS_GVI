@@ -5,10 +5,18 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Save, X, Edit } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function EditarActivo() {
   const router = useRouter();
   const params = useParams();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.rol_id === 3)) {
+      router.replace('/activos');
+    }
+  }, [user, isLoading, router]);
   const id = params?.id as string;
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -184,7 +192,7 @@ export default function EditarActivo() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">Orden de Compra</label>
-            <input type="text" name="orden_compra" value={formData.orden_compra} onChange={handleChange} placeholder="Ej. OC-2023-001" className="w-full bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+            <input type="text" name="orden_compra" value={formData.orden_compra} onChange={handleChange} placeholder="Ej. 123456" className="w-full bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
           </div>
         </div>
 

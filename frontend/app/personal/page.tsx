@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api, Usuario, EntidadBase } from '@/lib/api';
 import { Plus, Edit2, Trash2, X, Check, Search, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 const roles = [
   { id: 1, nombre: 'Administrador' },
@@ -12,6 +13,9 @@ const roles = [
 ];
 
 export default function PersonalCatalog() {
+  const { user } = useAuth();
+  const isValidador = user && user.rol_id === 1;
+
   const [data, setData] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,7 +31,7 @@ export default function PersonalCatalog() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Usuario | null>(null);
   const [formData, setFormData] = useState({ 
-    nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
+    dni: '', nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
     empresa_id: '', area_id: '', cargo_id: '', gerencia_id: '', sede_id: '' 
   });
   const [saving, setSaving] = useState(false);
@@ -64,13 +68,15 @@ export default function PersonalCatalog() {
   const filteredData = data.filter(item => 
     item.rol_id === 3 &&
     (item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.correo.toLowerCase().includes(searchTerm.toLowerCase()))
+    item.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.dni || '').includes(searchTerm))
   );
 
   const openModal = (item?: Usuario) => {
     if (item) {
       setEditingItem(item);
       setFormData({ 
+        dni: item.dni || '',
         nombre: item.nombre, correo: item.correo, contraseña: '', rol_id: item.rol_id, activo: item.activo,
         empresa_id: item.empresa_id ? String(item.empresa_id) : '',
         area_id: item.area_id ? String(item.area_id) : '',
@@ -81,7 +87,7 @@ export default function PersonalCatalog() {
     } else {
       setEditingItem(null);
       setFormData({ 
-        nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
+        dni: '', nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
         empresa_id: '', area_id: '', cargo_id: '', gerencia_id: '', sede_id: '' 
       });
     }
@@ -94,6 +100,7 @@ export default function PersonalCatalog() {
       setSaving(true);
       
       const payload: any = {
+        dni: formData.dni || null,
         nombre: formData.nombre,
         correo: formData.correo,
         rol_id: Number(formData.rol_id),
@@ -124,7 +131,7 @@ export default function PersonalCatalog() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('¿Está seguro de desactivar este usuario? No podrá iniciar sesión.')) {
+    if (confirm('¿Está seguro de desactivar este personal? No podrá recibir nuevos préstamos.')) {
       try {
         await api.delete(`/usuarios/${id}`);
         fetchData();
@@ -136,25 +143,27 @@ export default function PersonalCatalog() {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Personal</h1>
           <p className="text-slate-500 mt-1">Gestiona los empleados que recibirán equipos prestados</p>
         </div>
-        <Link 
-          href="/personal/nuevo"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center space-x-2 transition-colors text-sm font-medium shadow-sm"
-        >
-          <Plus size={18} />
-          <span>Nuevo Personal</span>
-        </Link>
+        {isValidador && (
+          <Link 
+            href="/personal/nuevo"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 transition-colors text-sm font-medium shadow-sm w-full sm:w-auto"
+          >
+            <Plus size={18} />
+            <span>Nuevo Personal</span>
+          </Link>
+        )}
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
         <input 
           type="text" 
-          placeholder="Buscar por nombre o correo..."
+          placeholder="Buscar por DNI, nombre o correo..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -172,21 +181,25 @@ export default function PersonalCatalog() {
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
             <tr className="bg-slate-100 border-b border-slate-200 text-slate-500 text-sm">
+              <th className="p-4 font-medium">DNI</th>
               <th className="p-4 font-medium">Nombre / Correo</th>
               <th className="p-4 font-medium">Empresa</th>
-              <th className="p-4 font-medium">Rol</th>
+              <th className="p-4 font-medium">Área / Cargo</th>
               <th className="p-4 font-medium">Estado</th>
-              <th className="p-4 font-medium text-right">Acciones</th>
+              {isValidador && <th className="p-4 font-medium text-right">Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="p-8 text-center text-slate-500">Cargando usuarios...</td></tr>
+              <tr><td colSpan={isValidador ? 6 : 5} className="p-8 text-center text-slate-500">Cargando usuarios...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={5} className="p-8 text-center text-slate-500">No se encontraron usuarios</td></tr>
+              <tr><td colSpan={isValidador ? 6 : 5} className="p-8 text-center text-slate-500">No se encontraron usuarios</td></tr>
             ) : (
               filteredData.map(item => (
                 <tr key={item.id} className="border-b border-slate-200 hover:bg-white transition-colors">
+                  <td className="p-4 font-medium text-slate-700">
+                    {item.dni || <span className="text-slate-400 italic">No registrado</span>}
+                  </td>
                   <td className="p-4">
                     <div className="font-medium text-slate-800">{item.nombre}</div>
                     <div className="text-sm text-slate-500">{item.correo}</div>
@@ -194,14 +207,9 @@ export default function PersonalCatalog() {
                   <td className="p-4 text-slate-600">
                     {item.empresa ? item.empresa.nombre : <span className="text-slate-400 italic">No asignada</span>}
                   </td>
-                  <td className="p-4">
-                    <span className={`inline-flex px-2 py-1 rounded-md text-xs font-medium ${
-                      item.rol_id === 1 ? 'bg-purple-100 text-purple-700 border border-purple-200' :
-                      item.rol_id === 2 ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                      'bg-slate-100 text-slate-700 border border-slate-200'
-                    }`}>
-                      {item.rol?.nombre || 'Usuario'}
-                    </span>
+                  <td className="p-4 text-slate-600">
+                    <div className="font-medium text-slate-800">{item.area?.nombre || <span className="text-slate-400 italic">No asignada</span>}</div>
+                    <div className="text-sm text-slate-500">{item.cargo?.nombre || <span className="text-slate-400 italic">No asignado</span>}</div>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -210,24 +218,26 @@ export default function PersonalCatalog() {
                       {item.activo ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="p-4 flex justify-end space-x-2 items-center h-full">
-                    <button 
-                      onClick={() => openModal(item)}
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors mt-1"
-                      title="Editar"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    {item.activo && (
+                  {isValidador && (
+                    <td className="p-4 flex justify-end space-x-2 items-center h-full">
                       <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
-                        title="Desactivar"
+                        onClick={() => openModal(item)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors mt-1"
+                        title="Editar"
                       >
-                        <Trash2 size={16} />
+                        <Edit2 size={16} />
                       </button>
-                    )}
-                  </td>
+                      {item.activo && (
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                          title="Desactivar"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -240,7 +250,7 @@ export default function PersonalCatalog() {
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl my-8">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-3xl">
               <h3 className="font-bold text-xl text-slate-800">
-                {editingItem ? 'Editar Empleado' : 'Nuevo Empleado'}
+                {editingItem ? 'Editar Personal' : 'Nuevo Personal'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                 <X size={20} />
@@ -248,10 +258,17 @@ export default function PersonalCatalog() {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Sección Datos de Cuenta */}
+              {/* Sección Datos Personales */}
               <div>
-                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Datos de Cuenta</h4>
+                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Datos Personales</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">DNI <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" value={formData.dni} onChange={(e) => setFormData({...formData, dni: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo <span className="text-red-500">*</span></label>
                     <input 
@@ -259,33 +276,16 @@ export default function PersonalCatalog() {
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required
                     />
                   </div>
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico <span className="text-red-500">*</span></label>
                     <input 
                       type="email" value={formData.correo} onChange={(e) => setFormData({...formData, correo: e.target.value})}
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña {editingItem && <span className="text-xs font-normal text-slate-400">(Dejar en blanco para no cambiar)</span>}</label>
-                    <input 
-                      type="password" value={formData.contraseña} onChange={(e) => setFormData({...formData, contraseña: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required={!editingItem}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Rol de Acceso <span className="text-red-500">*</span></label>
-                    <select 
-                      value={formData.rol_id} onChange={(e) => setFormData({...formData, rol_id: Number(e.target.value)})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white" required
-                    >
-                      {roles.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                    </select>
-                  </div>
                 </div>
               </div>
-
+ 
               {/* Sección Datos Organizacionales */}
               <div>
                 <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Datos Organizacionales</h4>
@@ -342,7 +342,7 @@ export default function PersonalCatalog() {
                   </div>
                 </div>
               </div>
-
+ 
               {editingItem && (
                 <div className="flex items-center space-x-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                   <input 
@@ -351,8 +351,8 @@ export default function PersonalCatalog() {
                     className="rounded text-blue-600 focus:ring-blue-500 w-5 h-5"
                   />
                   <div>
-                    <label htmlFor="activo" className="text-sm font-semibold text-slate-800">Cuenta Activa</label>
-                    <p className="text-xs text-slate-500">Si se desmarca, el usuario no podrá iniciar sesión en el sistema.</p>
+                    <label htmlFor="activo" className="text-sm font-semibold text-slate-800">Personal Activo</label>
+                    <p className="text-xs text-slate-500">Si se desmarca, el personal estará inactivo y no se le podrán asignar préstamos.</p>
                   </div>
                 </div>
               )}

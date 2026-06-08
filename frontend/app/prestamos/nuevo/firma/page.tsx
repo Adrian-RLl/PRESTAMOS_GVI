@@ -5,13 +5,27 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, PenTool, CheckCircle } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { api, Activo, Usuario } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function FirmaPrestamo() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.rol_id === 3)) {
+      router.replace('/prestamos');
+    }
+  }, [user, isLoading, router]);
+
   const sigCanvas = useRef<SignatureCanvas>(null);
   
   const [loading, setLoading] = useState(false);
-  const [prestamoData, setPrestamoData] = useState<any>(null);
+  const [prestamoData, setPrestamoData] = useState<{
+    usuario_id: string;
+    activos: Activo[];
+    fecha_prestamo: string;
+    fecha_devolucion: string;
+  } | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
 
   useEffect(() => {
@@ -21,7 +35,9 @@ export default function FirmaPrestamo() {
       return;
     }
     const data = JSON.parse(dataStr);
-    setPrestamoData(data);
+    Promise.resolve().then(() => {
+      setPrestamoData(data);
+    });
 
     // Fetch user details for the document
     api.get(`/usuarios/${data.usuario_id}`).then(res => {
@@ -37,6 +53,7 @@ export default function FirmaPrestamo() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!prestamoData) return;
     if (sigCanvas.current?.isEmpty()) {
       alert("Por favor, proporcione una firma digital.");
       return;
@@ -107,16 +124,16 @@ export default function FirmaPrestamo() {
               <table className="w-full text-left text-xs bg-white">
                 <thead className="bg-slate-100 border-b border-slate-200 font-semibold">
                   <tr>
-                    <th className="p-2">Código</th>
+                    <th className="p-2">Item</th>
                     <th className="p-2">Tipo</th>
                     <th className="p-2">Marca/Modelo</th>
                     <th className="p-2">Serie/IMEI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {prestamoData.activos.map((a: Activo) => (
+                  {prestamoData.activos.map((a: Activo, index: number) => (
                     <tr key={a.id} className="border-b border-slate-100 last:border-0">
-                      <td className="p-2">{a.codigo_patrimonial}</td>
+                      <td className="p-2">{index + 1}</td>
                       <td className="p-2">{a.tipo}</td>
                       <td className="p-2">{a.marca} {a.modelo}</td>
                       <td className="p-2">{a.serie}</td>

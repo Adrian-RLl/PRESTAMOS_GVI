@@ -4,11 +4,13 @@ import { AuthController } from './auth.controller';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
     UsuariosModule,
     PrismaModule,
+    MailerModule,
     JwtModule.register({
       global: true,
       secret: 'super-secret-key-change-this-in-production',

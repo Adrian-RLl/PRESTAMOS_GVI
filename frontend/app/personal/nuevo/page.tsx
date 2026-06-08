@@ -1,15 +1,26 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { Save, X, UserPlus, UploadCloud, Download } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 import * as XLSX from 'xlsx';
 
 export default function NuevoUsuario() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.rol_id !== 1)) {
+      router.replace('/personal');
+    }
+  }, [user, isLoading, router]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [catalogos, setCatalogos] = useState<any>({
     empresas: [],
@@ -41,15 +52,12 @@ export default function NuevoUsuario() {
   useEffect(() => {
     const fetchCatalogos = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-        
         const [empresas, gerencias, sedes, areas, cargos] = await Promise.all([
-          axios.get('http://localhost:3001/empresas', { headers }),
-          axios.get('http://localhost:3001/gerencias', { headers }),
-          axios.get('http://localhost:3001/sedes', { headers }),
-          axios.get('http://localhost:3001/areas', { headers }),
-          axios.get('http://localhost:3001/cargos', { headers }),
+          api.get('/empresas'),
+          api.get('/gerencias'),
+          api.get('/sedes'),
+          api.get('/areas'),
+          api.get('/cargos'),
         ]);
 
         setCatalogos({
@@ -75,7 +83,6 @@ export default function NuevoUsuario() {
     e.preventDefault();
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       // Nombre completo computado
       const nombreCompleto = `${formData.nombres} ${formData.apellido_paterno} ${formData.apellido_materno}`.trim();
       
@@ -92,9 +99,7 @@ export default function NuevoUsuario() {
         rol_id: 3 // Fuerza que sea rol Personal (Usuario normal)
       };
       
-      await axios.post('http://localhost:3001/usuarios', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/usuarios', payload);
       router.push('/personal');
     } catch (error) {
       console.error('Error al crear usuario:', error);
@@ -104,10 +109,58 @@ export default function NuevoUsuario() {
     }
   };
 
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        const batch = data.map((row: any) => ({
+          dni: row["DNI"]?.toString() || row["dni"]?.toString() || '',
+          nombres: row["Nombres"]?.toString() || row["nombres"]?.toString() || '',
+          apellido_paterno: row["Apellido Paterno"]?.toString() || row["apellido_paterno"]?.toString() || '',
+          apellido_materno: row["Apellido Materno"]?.toString() || row["apellido_materno"]?.toString() || '',
+          correo: row["Correo Empresa"]?.toString() || row["Correo"]?.toString() || row["correo"]?.toString() || '',
+          correo_personal: row["Correo Personal"]?.toString() || row["correo_personal"]?.toString() || '',
+          telefono_personal: row["Teléfono Fijo"]?.toString() || row["telefono_personal"]?.toString() || '',
+          celular_personal: row["Celular Personal"]?.toString() || row["celular_personal"]?.toString() || '',
+          celular_empresa: row["Celular Empresa"]?.toString() || row["celular_empresa"]?.toString() || '',
+          genero: row["Género"]?.toString() || row["Género (Masculino/Femenino)"]?.toString() || row["genero"]?.toString() || '',
+          
+          // Nombres de catálogo
+          empresa: row["Empresa"]?.toString() || row["ID Empresa"]?.toString() || '',
+          gerencia: row["Gerencia"]?.toString() || row["ID Gerencia"]?.toString() || '',
+          sede: row["Sede"]?.toString() || row["ID Sede"]?.toString() || '',
+          area: row["Área"]?.toString() || row["ID Área"]?.toString() || '',
+          cargo: row["Cargo"]?.toString() || row["ID Cargo"]?.toString() || '',
+        }));
+
+        await api.post('/usuarios/lote', batch);
+        alert(`Se importaron los usuarios correctamente.`);
+        router.push('/personal');
+      } catch (error: any) {
+        console.error("Error importing excel", error);
+        alert(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
+      } finally {
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const downloadTemplate = () => {
     const ws_data = [
-      ["DNI", "Nombres", "Apellido Paterno", "Apellido Materno", "Correo Empresa", "Correo Personal", "Teléfono Fijo", "Celular Personal", "Celular Empresa", "Género (Masculino/Femenino)", "ID Empresa", "ID Gerencia", "ID Sede", "ID Área", "ID Cargo"],
-      ["70123456", "Juan Alberto", "Perez", "Gomez", "juan@vgi.com", "juan.gomez@gmail.com", "01456789", "987654321", "999888777", "Masculino", "1", "1", "1", "1", "1"]
+      ["DNI", "Nombres", "Apellido Paterno", "Apellido Materno", "Correo Empresa", "Correo Personal", "Teléfono Fijo", "Celular Personal", "Celular Empresa", "Género (Masculino/Femenino)", "Empresa", "Gerencia", "Sede", "Área", "Cargo"],
+      ["70123456", "Juan Alberto", "Perez", "Gomez", "juan@vgi.com", "juan.gomez@gmail.com", "01456789", "987654321", "999888777", "Masculino", "PROSEMBRA", "Operaciones", "Sede Principal", "Sistemas", "Analista"]
     ];
     
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -124,11 +177,11 @@ export default function NuevoUsuario() {
       {wch: 20}, // Celular Personal
       {wch: 20}, // Celular Empresa
       {wch: 25}, // Género
-      {wch: 15}, // ID Empresa
-      {wch: 15}, // ID Gerencia
-      {wch: 15}, // ID Sede
-      {wch: 15}, // ID Área
-      {wch: 15}  // ID Cargo
+      {wch: 20}, // Empresa
+      {wch: 20}, // Gerencia
+      {wch: 20}, // Sede
+      {wch: 20}, // Área
+      {wch: 20}  // Cargo
     ];
     ws['!cols'] = wscols;
 
@@ -153,10 +206,21 @@ export default function NuevoUsuario() {
           <button onClick={downloadTemplate} type="button" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition-colors">
             <Download size={18} /> Descargar Plantilla
           </button>
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 border border-emerald-300 hover:bg-emerald-200 text-emerald-800 rounded-xl font-medium transition-colors cursor-pointer">
-            <UploadCloud size={18} /> Cargar Excel
-            <input type="file" className="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
-          </label>
+          <input 
+            type="file" 
+            accept=".xlsx, .xls, .csv" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={importing}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors cursor-pointer disabled:opacity-75"
+          >
+            {importing ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <UploadCloud size={18} />}
+            {importing ? 'Cargando...' : 'Cargar Excel'}
+          </button>
         </div>
       </div>
 

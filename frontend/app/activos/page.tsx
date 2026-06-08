@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Fragment } from 'react';
 import { PlusCircle, Edit, Trash2, FileSpreadsheet, X, Save } from 'lucide-react';
 import { api, Activo } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ActivosPage() {
+  const { user } = useAuth();
+  const canEdit = user && (user.rol_id === 1 || user.rol_id === 2);
+  const canDelete = user && user.rol_id === 1;
+
   const [activos, setActivos] = useState<Activo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,6 +45,14 @@ export default function ActivosPage() {
   // Import State
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterEstado, filterTipo, filterOrden]);
 
   useEffect(() => {
     fetchActivos();
@@ -111,21 +124,25 @@ export default function ActivosPage() {
         const data = XLSX.utils.sheet_to_json(ws);
         
         const batch = data.map((row: any) => ({
-          tipo: row.tipo?.toString() || row.Tipo?.toString() || 'Otro',
+          tipo: row.tipo?.toString() || row.Tipo?.toString() || row["Tipo de Activo"]?.toString() || row["Tipo de Activo (Ej. Laptop, Celular)"]?.toString() || 'Otro',
           marca: row.marca?.toString() || row.Marca?.toString() || 'Genérica',
           modelo: row.modelo?.toString() || row.Modelo?.toString() || 'S/M',
-          serie: row.serie?.toString() || row.Serie?.toString() || 'S/N',
-          estado: row.estado?.toString() || row.Estado?.toString() || 'Disponible',
-          ubicacion: row.ubicacion?.toString() || row.Ubicacion?.toString() || 'Principal',
-          observaciones: row.observaciones?.toString() || row.Observaciones?.toString() || ''
+          serie: row.serie?.toString() || row.Serie?.toString() || row["Número de Serie"]?.toString() || row["Número de Serie (Debe ser único)"]?.toString() || 'S/N',
+          condicion: row.condicion?.toString() || row.Condición?.toString() || row["Condición"]?.toString() || row["Condición (Nuevo, Usado, Malogrado)"]?.toString() || 'Nuevo',
+          estado: row.estado?.toString() || row.Estado?.toString() || row["Estado"]?.toString() || row["Estado (Disponible, Asignado)"]?.toString() || 'Disponible',
+          vigencia: row.vigencia?.toString() || row.Vigencia?.toString() || row["Vigencia"]?.toString() || row["Vigencia (Ej. 1 año)"]?.toString() || '',
+          ubicacion: row.ubicacion?.toString() || row.Ubicacion?.toString() || row["Ubicación"]?.toString() || 'Principal',
+          orden_compra: row.orden_compra?.toString() || row.orden?.toString() || row["Orden de Compra"]?.toString() || '',
+          observaciones: row.observaciones?.toString() || row.Observaciones?.toString() || '',
+          empresa: row.empresa?.toString() || row.Empresa?.toString() || row["Empresa"]?.toString() || row["ID de Empresa"]?.toString() || ''
         }));
 
         await api.post('/activos/lote', batch);
         alert(`Se importaron los activos correctamente.`);
         fetchActivos();
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error importing excel", error);
-        alert("Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
+        alert(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
       } finally {
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -134,8 +151,8 @@ export default function ActivosPage() {
     reader.readAsBinaryString(file);
   };
 
-  const tiposUnicos = Array.from(new Set(activos.map(a => a.tipo))).filter(Boolean);
-  const ordenesUnicas = Array.from(new Set(activos.map(a => a.orden_compra))).filter(Boolean);
+  const tiposUnicos = Array.from(new Set(activos.map(a => a.tipo))).filter(Boolean) as string[];
+  const ordenesUnicas = Array.from(new Set(activos.map(a => a.orden_compra))).filter(Boolean) as string[];
 
   const filteredActivos = activos.filter((activo) => {
     // Filtro por Estado
@@ -164,37 +181,49 @@ export default function ActivosPage() {
     return matchEstado && matchTipo && matchOrden && matchSearch;
   });
 
+  // Pagination calculations
+  const totalItems = filteredActivos.length;
+  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
+  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
+  const endIndex = itemsPerPage === -1 ? totalItems : Math.min(startIndex + itemsPerPage, totalItems);
+
+  const paginatedActivos = itemsPerPage === -1
+    ? filteredActivos
+    : filteredActivos.slice(startIndex, endIndex);
+
   return (
-    <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-8">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Activos</h1>
           <p className="text-slate-500 mt-1">Gestiona el inventario de la empresa</p>
         </div>
-        <div className="flex gap-3">
-          <input 
-            type="file" 
-            accept=".xlsx, .xls, .csv" 
-            ref={fileInputRef} 
-            onChange={handleImportExcel} 
-            className="hidden" 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()} 
-            disabled={importing}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors disabled:opacity-70"
-          >
-            {importing ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <FileSpreadsheet size={20} />}
-            {importing ? 'Importando...' : 'Importar Excel'}
-          </button>
-          <Link 
-            href="/activos/nuevo"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
-          >
-            <PlusCircle size={20} />
-            Nuevo Activo
-          </Link>
-        </div>
+        {canEdit && (
+          <div className="flex flex-wrap gap-2.5 sm:gap-3">
+            <input 
+              type="file" 
+              accept=".xlsx, .xls, .csv" 
+              ref={fileInputRef} 
+              onChange={handleImportExcel} 
+              className="hidden" 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              disabled={importing}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors disabled:opacity-70"
+            >
+              {importing ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <FileSpreadsheet size={20} />}
+              {importing ? 'Importando...' : 'Importar Excel'}
+            </button>
+            <Link 
+              href="/activos/nuevo"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
+            >
+              <PlusCircle size={20} />
+              Nuevo Activo
+            </Link>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -203,8 +232,8 @@ export default function ActivosPage() {
         </div>
       ) : (
         <>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="w-full">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Buscador General</label>
               <input 
                 type="text" 
@@ -214,7 +243,7 @@ export default function ActivosPage() {
               />
             </div>
             
-            <div className="w-full md:w-48 flex-shrink-0">
+            <div className="w-full">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar Estado</label>
               <select 
                 value={filterEstado}
@@ -229,7 +258,7 @@ export default function ActivosPage() {
               </select>
             </div>
 
-            <div className="w-full md:w-48 flex-shrink-0">
+            <div className="w-full">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar Tipo</label>
               <select 
                 value={filterTipo}
@@ -243,7 +272,7 @@ export default function ActivosPage() {
               </select>
             </div>
 
-            <div className="w-full md:w-48 flex-shrink-0 relative" ref={dropdownRef}>
+            <div className="w-full relative" ref={dropdownRef}>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar Orden de Compra</label>
               <input 
                 type="text"
@@ -295,7 +324,7 @@ export default function ActivosPage() {
                 <th className="p-4 font-semibold">Ubicación</th>
                 <th className="p-4 font-semibold">Orden de Compra</th>
                 <th className="p-4 font-semibold">Asignado A</th>
-                <th className="p-4 font-semibold text-right">Acciones</th>
+                {canEdit && <th className="p-4 font-semibold text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -306,7 +335,7 @@ export default function ActivosPage() {
                   </td>
                 </tr>
               ) : (
-                filteredActivos.map((activo) => (
+                paginatedActivos.map((activo) => (
                   <tr key={activo.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-4 font-medium text-slate-700">{activo.serie}</td>
                     <td className="p-4">
@@ -330,22 +359,95 @@ export default function ActivosPage() {
                     <td className="p-4 text-slate-600 font-medium text-sm">
                       {activo.prestamos?.find(p => p.estado === 'Activo')?.usuario?.nombre || <span className="text-slate-400 italic font-normal">No asignado</span>}
                     </td>
-                    <td className="p-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/activos/editar/${activo.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block">
-                          <Edit size={18} />
-                        </Link>
-                        <button onClick={() => deleteActivo(activo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
+                    {canEdit && (
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Link href={`/activos/editar/${activo.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block">
+                            <Edit size={18} />
+                          </Link>
+                          {canDelete && (
+                            <button onClick={() => deleteActivo(activo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        {filteredActivos.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-slate-200">
+            <div className="text-sm text-slate-500 font-medium">
+              Mostrando <span className="text-slate-800">{totalItems === 0 ? 0 : startIndex + 1}</span> a <span className="text-slate-800">{endIndex}</span> de <span className="text-slate-800">{totalItems}</span> registros
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500 font-medium">Por página:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer font-medium"
+                >
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={-1}>Todos</option>
+                </select>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Anterior
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                    })
+                    .map((page, index, array) => {
+                      const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                      return (
+                        <Fragment key={page}>
+                          {showEllipsisBefore && <span className="px-2 text-slate-400 font-medium">...</span>}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                              currentPage === page
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                                : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </Fragment>
+                      );
+                    })}
+
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         </>
       )}
     </div>

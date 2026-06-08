@@ -82,6 +82,12 @@ model Usuario {
   sede_id          Int?
   sede             Sede?      @relation(fields: [sede_id], references: [id])
 
+  intentos_fallidos  Int        @default(0)
+  bloqueado_hasta    DateTime?
+
+  recuperar_token    String?    @unique
+  recuperar_expira   DateTime?
+
   prestamos        Prestamo[]
   fecha_creacion   DateTime   @default(now())
 }

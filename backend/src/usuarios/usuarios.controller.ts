@@ -18,35 +18,34 @@ export class UsuariosController {
   @Roles(1)
   @Post('lote')
   createBatch(@Body() createUsuarioDtos: any[]) {
-    // Necesitamos implementarlo en usuariosService
     return this.usuariosService.createBatch(createUsuarioDtos);
   }
 
-  @Roles(1, 2)
+  @Roles(1, 2, 3)
   @Get()
   findAll() {
     return this.usuariosService.findAll();
   }
 
-  @Roles(1, 2)
+  @Roles(1, 2, 3)
   @Get('dni/:dni')
   findByDni(@Param('dni') dni: string) {
     return this.usuariosService.findByDni(dni);
   }
 
-  @Roles(1, 2)
+  @Roles(1, 2, 3)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usuariosService.findOne(+id);
   }
 
-  @Roles(1, 2)
+  @Roles(1)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUsuarioDto: any) {
     return this.usuariosService.update(+id, updateUsuarioDto);
   }
 
-  @Roles(1, 2)
+  @Roles(1)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usuariosService.remove(+id);

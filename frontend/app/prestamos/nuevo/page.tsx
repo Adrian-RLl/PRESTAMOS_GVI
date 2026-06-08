@@ -2,13 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Search, RefreshCw, Trash2 } from 'lucide-react';
 import { api, Activo, Usuario, EntidadBase } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 export default function NuevaEntrega() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.rol_id === 3)) {
+      router.replace('/prestamos');
+    }
+  }, [user, isLoading, router]);
   
   // Catalogs
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -33,16 +39,10 @@ export default function NuevaEntrega() {
   const [serieBusqueda, setSerieBusqueda] = useState('');
   const [activosAsignados, setActivosAsignados] = useState<Activo[]>([]);
   
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    cargarCatalogos();
-  }, []);
 
   const cargarCatalogos = async () => {
     try {
-      setLoading(true);
       const [resUsr, resEmp, resAre, resCar, resGer, resSed] = await Promise.all([
         api.get('/usuarios'),
         api.get('/empresas'),
@@ -59,10 +59,14 @@ export default function NuevaEntrega() {
       setSedes(resSed.data);
     } catch (err) {
       console.error("Error al cargar catálogos", err);
-    } finally {
-      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      cargarCatalogos();
+    });
+  }, []);
 
   const buscarDni = async () => {
     if (!dniBusqueda) return;
@@ -80,7 +84,7 @@ export default function NuevaEntrega() {
       } else {
         setError('Usuario no encontrado con ese DNI');
       }
-    } catch (err) {
+    } catch {
       setError('Usuario no encontrado con ese DNI');
     }
   };
@@ -104,8 +108,8 @@ export default function NuevaEntrega() {
       const res = await api.get(`/activos/buscar/${serieBusqueda}`);
       if (res.data) {
         const activo = res.data;
-        if (activo.estado !== 'Stock') {
-          setError(`El activo ${activo.codigo_patrimonial} no está en Stock.`);
+        if (activo.estado !== 'Disponible') {
+          setError(`El activo con Serie ${activo.serie} no está disponible para préstamo.`);
           return;
         }
         if (activosAsignados.find(a => a.id === activo.id)) {
@@ -118,7 +122,7 @@ export default function NuevaEntrega() {
       } else {
         setError('Activo no encontrado');
       }
-    } catch (err) {
+    } catch {
       setError('Activo no encontrado');
     }
   };
@@ -318,7 +322,7 @@ export default function NuevaEntrega() {
                           <Trash2 size={16} />
                         </button>
                       </td>
-                      <td className="p-3 font-medium text-slate-700">{a.codigo_patrimonial} - {a.tipo}</td>
+                      <td className="p-3 font-medium text-slate-700">{a.tipo}</td>
                       <td className="p-3 text-slate-600">{a.marca} {a.modelo}</td>
                       <td className="p-3 text-slate-600">{a.serie}</td>
                       <td className="p-3 text-center">
