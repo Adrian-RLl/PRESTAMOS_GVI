@@ -25,15 +25,16 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ScheduleModule.forRoot(),
     MailerModule.forRoot({
       transport: {
-        host: 'smtp.ethereal.email',
-        port: 587,
+        host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true', // true para puerto 465, false para otros
         auth: {
-          user: 'ethereal.user@ethereal.email',
-          pass: 'etherealpassword',
+          user: process.env.SMTP_USER || 'ethereal.user@ethereal.email',
+          pass: process.env.SMTP_PASS || 'etherealpassword',
         },
       },
       defaults: {
-        from: '"VGI Préstamos" <noreply@vanguardfresh.pe>',
+        from: process.env.SMTP_FROM || '"VGI Préstamos" <noreply@vanguardfresh.pe>',
       },
     }),
     EmpresasModule,

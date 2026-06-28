@@ -22,6 +22,9 @@ export class GerenciasService {
   }
 
   remove(id: number) {
-    return this.prisma.gerencia.update({ where: { id }, data: { estado: false } });
+    return this.prisma.gerencia.update({
+      where: { id },
+      data: { estado: false },
+    });
   }
 }

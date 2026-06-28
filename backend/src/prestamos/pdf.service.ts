@@ -3,7 +3,6 @@ import PDFDocument from 'pdfkit';
 
 @Injectable()
 export class PdfService {
-
   // ─── Acta de Entrega (múltiples activos) ───────────────────────────
 
   async generateLoanPdf(prestamo: any): Promise<Buffer> {
@@ -20,19 +19,38 @@ export class PdfService {
       doc.on('error', reject);
 
       const usuario = prestamos[0].usuario;
-      const fechaPrestamo = new Date(prestamos[0].fecha_prestamo).toLocaleDateString();
-      const fechaDevolucion = new Date(prestamos[0].fecha_devolucion).toLocaleDateString();
+      const fechaPrestamo = new Date(
+        prestamos[0].fecha_prestamo,
+      ).toLocaleDateString();
+      const fechaDevolucion = prestamos[0].fecha_devolucion ? new Date(
+        prestamos[0].fecha_devolucion,
+      ).toLocaleDateString() : 'Asignación Permanente';
       const pageW = 495; // 595 - 50*2
 
       // ── Encabezado ──
-      doc.font('Helvetica-Bold').fontSize(13)
-        .text('ACTA DE ENTREGA DE ACTIVOS DE TI', 50, 50, { align: 'center', width: pageW });
-      doc.font('Helvetica').fontSize(9)
-        .text('Grupo Vanguard - Control de Activos', 50, doc.y + 4, { align: 'center', width: pageW });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(13)
+        .text('ACTA DE ENTREGA DE ACTIVOS DE TI', 50, 50, {
+          align: 'center',
+          width: pageW,
+        });
+      doc
+        .font('Helvetica')
+        .fontSize(9)
+        .text('Grupo Vanguard - Control de Activos', 50, doc.y + 4, {
+          align: 'center',
+          width: pageW,
+        });
 
       // Línea separadora
       const lineY = doc.y + 10;
-      doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(1.5).strokeColor('#0066B3').stroke();
+      doc
+        .moveTo(50, lineY)
+        .lineTo(545, lineY)
+        .lineWidth(1.5)
+        .strokeColor('#0066B3')
+        .stroke();
 
       // ── Datos generales ──
       let currentY = lineY + 14;
@@ -53,9 +71,13 @@ export class PdfService {
       ];
 
       for (const [label, value] of infoData) {
-        doc.font('Helvetica-Bold').fontSize(9)
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(9)
           .text(label, labelCol, currentY, { continued: false });
-        doc.font('Helvetica').fontSize(9)
+        doc
+          .font('Helvetica')
+          .fontSize(9)
           .text(value, valueCol, currentY, { continued: false });
         currentY += rowH;
       }
@@ -63,14 +85,20 @@ export class PdfService {
       currentY += 8;
 
       // ── Texto introductorio ──
-      doc.font('Helvetica').fontSize(8)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
         .text(
           'Por medio de la presente acta, el USUARIO hace recepción de los EQUIPOS con sus respectivos accesorios detallados líneas abajo a la EMPRESA, por intermedio de su GESTOR.',
-          50, currentY, { align: 'justify', width: pageW }
+          50,
+          currentY,
+          { align: 'justify', width: pageW },
         );
       currentY = doc.y + 6;
 
-      doc.font('Helvetica-Bold').fontSize(9)
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
         .text('Los Equipos incluyen:', 50, currentY);
       currentY = doc.y + 8;
 
@@ -85,39 +113,65 @@ export class PdfService {
       const tableX = 50;
 
       // Cabecera
-      currentY = this.drawRow(doc, currentY, tableX, colDefs.map(c => c.label), colDefs.map(c => c.width), {
-        bold: true, bgColor: '#D6E4F0', rowHeight: 20, fontSize: 7.5,
-      });
+      currentY = this.drawRow(
+        doc,
+        currentY,
+        tableX,
+        colDefs.map((c) => c.label),
+        colDefs.map((c) => c.width),
+        {
+          bold: true,
+          bgColor: '#D6E4F0',
+          rowHeight: 20,
+          fontSize: 7.5,
+        },
+      );
 
       // Filas de datos
       for (let i = 0; i < prestamos.length; i++) {
         const p = prestamos[i];
         const equipo = `${p.activo.tipo}, ${p.activo.marca}, ${p.activo.modelo}`;
-        currentY = this.drawRow(doc, currentY, tableX, [
-          String(i + 1),
-          equipo,
-          p.activo.condicion || 'Usado',
-          p.activo.serie || '-',
-          p.activo.observaciones || '-',
-        ], colDefs.map(c => c.width), {
-          rowHeight: 22, fontSize: 7,
-        });
+        currentY = this.drawRow(
+          doc,
+          currentY,
+          tableX,
+          [
+            String(i + 1),
+            equipo,
+            p.activo.condicion || 'Usado',
+            p.activo.serie || '-',
+            p.activo.observaciones || '-',
+          ],
+          colDefs.map((c) => c.width),
+          {
+            rowHeight: 22,
+            fontSize: 7,
+          },
+        );
       }
 
       currentY += 10;
 
       // ── Cláusula legal ──
-      doc.font('Helvetica').fontSize(7)
+      doc
+        .font('Helvetica')
+        .fontSize(7)
         .text(
           'Los equipos entregados son propiedad de la empresa y están destinados exclusivamente para el desempeño de las actividades laborales. El USUARIO asignado es responsable del buen uso de los equipos y sus accesorios, de acuerdo con lo mencionado en las políticas control y gestión de activos de la empresa. En caso de daño, pérdida o robo, EL USUARIO deberá asumir el costo respectivo según la política de control y gestion de activos TI, EL USUARIO DEBE DE INFORMAR DENTRO DE LAS 24 HORAS LO SUCEDIDO A SOPORTE TI según conforme a dichas políticas. Los equipos tienen vigencia permanente mientras el USUARIO esté en la empresa y deben ser devueltos en las condiciones originales al finalizar la relación laboral, salvo el desgaste normal por uso adecuado.',
-          50, currentY, { align: 'justify', width: pageW }
+          50,
+          currentY,
+          { align: 'justify', width: pageW },
         );
       currentY = doc.y + 4;
 
-      doc.font('Helvetica').fontSize(7)
+      doc
+        .font('Helvetica')
+        .fontSize(7)
         .text(
           'Por tanto, EL USUARIO se compromete a usar de manera responsable los equipos y condiciones de trabajo entregadas por la empresa en este acto, de acuerdo con lo mencionado en las políticas de gestión de activos de la empresa. De comprobarse el uso indebido, falta de diligencia o mala fe por parte del USUARIO, este AUTORIZA a LA EMPRESA a realizar los descuentos correspondientes sobre sus remuneraciones, beneficios sociales y liquidación al cese, hasta reponer el valor total de los equipos y/o condiciones de trabajo entregadas.',
-          50, currentY, { align: 'justify', width: pageW }
+          50,
+          currentY,
+          { align: 'justify', width: pageW },
         );
       currentY = doc.y + 20;
 
@@ -130,19 +184,34 @@ export class PdfService {
 
       if (prestamos[0].firma_digital) {
         try {
-          const base64Data = prestamos[0].firma_digital.replace(/^data:image\/png;base64,/, '');
-          doc.image(Buffer.from(base64Data, 'base64'), 50, currentY, { width: 140, height: 60, fit: [140, 60] });
+          const base64Data = prestamos[0].firma_digital.replace(
+            /^data:image\/png;base64,/,
+            '',
+          );
+          doc.image(Buffer.from(base64Data, 'base64'), 50, currentY, {
+            width: 140,
+            height: 60,
+            fit: [140, 60],
+          });
           currentY += 65;
-        } catch (_) { /* firma inválida */ }
+        } catch (_) {
+          /* firma inválida */
+        }
       }
 
-      doc.font('Helvetica').fontSize(8)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
         .text('________________________', 50, currentY);
       currentY = doc.y + 2;
-      doc.font('Helvetica-Bold').fontSize(8)
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8)
         .text(usuario.nombre || '', 50, currentY);
       currentY = doc.y + 2;
-      doc.font('Helvetica').fontSize(8)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
         .text(`DNI: ${usuario.dni || '-'}`, 50, currentY);
 
       doc.end();
@@ -165,18 +234,37 @@ export class PdfService {
       doc.on('error', reject);
 
       const usuario = prestamos[0].usuario;
-      const fechaPrestamo = new Date(prestamos[0].fecha_prestamo).toLocaleDateString();
-      const fechaDevolucion = new Date(prestamos[0].fecha_devolucion || new Date()).toLocaleDateString();
+      const fechaPrestamo = new Date(
+        prestamos[0].fecha_prestamo,
+      ).toLocaleDateString();
+      const fechaDevolucion = new Date(
+        prestamos[0].fecha_devolucion || new Date(),
+      ).toLocaleDateString();
       const pageW = 495;
 
       // ── Encabezado ──
-      doc.font('Helvetica-Bold').fontSize(13)
-        .text('ACTA DE DEVOLUCIÓN DE ACTIVOS DE TI', 50, 50, { align: 'center', width: pageW });
-      doc.font('Helvetica').fontSize(9)
-        .text('Grupo Vanguard - Control de Activos', 50, doc.y + 4, { align: 'center', width: pageW });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(13)
+        .text('ACTA DE DEVOLUCIÓN DE ACTIVOS DE TI', 50, 50, {
+          align: 'center',
+          width: pageW,
+        });
+      doc
+        .font('Helvetica')
+        .fontSize(9)
+        .text('Grupo Vanguard - Control de Activos', 50, doc.y + 4, {
+          align: 'center',
+          width: pageW,
+        });
 
       const lineY = doc.y + 10;
-      doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(1.5).strokeColor('#0066B3').stroke();
+      doc
+        .moveTo(50, lineY)
+        .lineTo(545, lineY)
+        .lineWidth(1.5)
+        .strokeColor('#0066B3')
+        .stroke();
 
       // ── Datos generales ──
       let currentY = lineY + 14;
@@ -197,23 +285,33 @@ export class PdfService {
       ];
 
       for (const [label, value] of infoData) {
-        doc.font('Helvetica-Bold').fontSize(9)
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(9)
           .text(label, labelCol, currentY, { continued: false });
-        doc.font('Helvetica').fontSize(9)
+        doc
+          .font('Helvetica')
+          .fontSize(9)
           .text(value, valueCol, currentY, { continued: false });
         currentY += rowH;
       }
 
       currentY += 8;
 
-      doc.font('Helvetica').fontSize(8)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
         .text(
           'Por medio de la presente acta, el USUARIO hace devolución formal de los EQUIPOS con sus respectivos accesorios detallados líneas abajo a la EMPRESA, por intermedio de su GESTOR.',
-          50, currentY, { align: 'justify', width: pageW }
+          50,
+          currentY,
+          { align: 'justify', width: pageW },
         );
       currentY = doc.y + 6;
 
-      doc.font('Helvetica-Bold').fontSize(9)
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
         .text('Los Equipos devueltos:', 50, currentY);
       currentY = doc.y + 8;
 
@@ -227,38 +325,64 @@ export class PdfService {
       ];
       const tableX = 50;
 
-      currentY = this.drawRow(doc, currentY, tableX, colDefs.map(c => c.label), colDefs.map(c => c.width), {
-        bold: true, bgColor: '#D6E4F0', rowHeight: 20, fontSize: 7.5,
-      });
+      currentY = this.drawRow(
+        doc,
+        currentY,
+        tableX,
+        colDefs.map((c) => c.label),
+        colDefs.map((c) => c.width),
+        {
+          bold: true,
+          bgColor: '#D6E4F0',
+          rowHeight: 20,
+          fontSize: 7.5,
+        },
+      );
 
       for (let i = 0; i < prestamos.length; i++) {
         const p = prestamos[i];
         const equipo = `${p.activo.tipo}, ${p.activo.marca}, ${p.activo.modelo}`;
-        currentY = this.drawRow(doc, currentY, tableX, [
-          String(i + 1),
-          equipo,
-          p.activo.condicion || 'Usado',
-          p.activo.serie || '-',
-          p.activo.observaciones || '-',
-        ], colDefs.map(c => c.width), {
-          rowHeight: 22, fontSize: 7,
-        });
+        currentY = this.drawRow(
+          doc,
+          currentY,
+          tableX,
+          [
+            String(i + 1),
+            equipo,
+            p.activo.condicion || 'Usado',
+            p.activo.serie || '-',
+            p.activo.observaciones || '-',
+          ],
+          colDefs.map((c) => c.width),
+          {
+            rowHeight: 22,
+            fontSize: 7,
+          },
+        );
       }
 
       currentY += 10;
 
       // ── Cláusula legal ──
-      doc.font('Helvetica').fontSize(7)
+      doc
+        .font('Helvetica')
+        .fontSize(7)
         .text(
           'Los equipos entregados son propiedad de la empresa y están destinados exclusivamente para el desempeño de las actividades laborales. El USUARIO asignado es responsable del buen uso de los equipos y sus accesorios, de acuerdo con lo mencionado en las políticas control y gestión de activos de la empresa. En caso de daño, pérdida o robo, EL USUARIO deberá asumir el costo respectivo según la política de control y gestion de activos TI, EL USUARIO DEBE DE INFORMAR DENTRO DE LAS 24 HORAS LO SUCEDIDO A SOPORTE TI según conforme a dichas políticas. Los equipos tienen vigencia permanente mientras el USUARIO esté en la empresa y deben ser devueltos en las condiciones originales al finalizar la relación laboral, salvo el desgaste normal por uso adecuado.',
-          50, currentY, { align: 'justify', width: pageW }
+          50,
+          currentY,
+          { align: 'justify', width: pageW },
         );
       currentY = doc.y + 4;
 
-      doc.font('Helvetica').fontSize(7)
+      doc
+        .font('Helvetica')
+        .fontSize(7)
         .text(
           'Por tanto, EL USUARIO se compromete a usar de manera responsable los equipos y condiciones de trabajo entregadas por la empresa en este acto, de acuerdo con lo mencionado en las políticas de gestión de activos de la empresa. De comprobarse el uso indebido, falta de diligencia o mala fe por parte del USUARIO, este AUTORIZA a LA EMPRESA a realizar los descuentos correspondientes sobre sus remuneraciones, beneficios sociales y liquidación al cese, hasta reponer el valor total de los equipos y/o condiciones de trabajo entregadas.',
-          50, currentY, { align: 'justify', width: pageW }
+          50,
+          currentY,
+          { align: 'justify', width: pageW },
         );
       currentY = doc.y + 20;
 
@@ -272,18 +396,30 @@ export class PdfService {
       if (firmaData) {
         try {
           const base64Data = firmaData.replace(/^data:image\/png;base64,/, '');
-          doc.image(Buffer.from(base64Data, 'base64'), 50, currentY, { width: 140, height: 60, fit: [140, 60] });
+          doc.image(Buffer.from(base64Data, 'base64'), 50, currentY, {
+            width: 140,
+            height: 60,
+            fit: [140, 60],
+          });
           currentY += 65;
-        } catch (_) { /* firma inválida */ }
+        } catch (_) {
+          /* firma inválida */
+        }
       }
 
-      doc.font('Helvetica').fontSize(8)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
         .text('________________________', 50, currentY);
       currentY = doc.y + 2;
-      doc.font('Helvetica-Bold').fontSize(8)
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8)
         .text(usuario.nombre || '', 50, currentY);
       currentY = doc.y + 2;
-      doc.font('Helvetica').fontSize(8)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
         .text(`DNI: ${usuario.dni || '-'}`, 50, currentY);
 
       doc.end();
@@ -298,7 +434,12 @@ export class PdfService {
     startX: number,
     cells: string[],
     widths: number[],
-    opts: { bold?: boolean; bgColor?: string; rowHeight?: number; fontSize?: number },
+    opts: {
+      bold?: boolean;
+      bgColor?: string;
+      rowHeight?: number;
+      fontSize?: number;
+    },
   ): number {
     const h = opts.rowHeight || 20;
     const fs = opts.fontSize || 8;
@@ -323,7 +464,10 @@ export class PdfService {
 
     // Texto de cada celda
     doc.save();
-    doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(fs).fillColor('#000000');
+    doc
+      .font(opts.bold ? 'Helvetica-Bold' : 'Helvetica')
+      .fontSize(fs)
+      .fillColor('#000000');
     cx = startX;
     for (let i = 0; i < cells.length; i++) {
       const cellText = cells[i] || '-';

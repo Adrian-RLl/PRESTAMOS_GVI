@@ -22,7 +22,7 @@ export class UsuariosService {
         gerencia: true,
         sede: true,
       },
-      orderBy: { id: 'desc' }
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -36,7 +36,7 @@ export class UsuariosService {
         cargo: true,
         gerencia: true,
         sede: true,
-      }
+      },
     });
   }
 
@@ -50,7 +50,7 @@ export class UsuariosService {
         cargo: true,
         gerencia: true,
         sede: true,
-      }
+      },
     });
   }
 
@@ -70,7 +70,7 @@ export class UsuariosService {
     }
 
     const hash = await bcrypt.hash(data.contraseña, 10);
-    
+
     return this.prisma.usuario.create({
       data: {
         dni: data.dni,
@@ -84,7 +84,7 @@ export class UsuariosService {
         gerencia_id: data.gerencia_id,
         sede_id: data.sede_id,
         activo: data.activo ?? true,
-      }
+      },
     });
   }
 
@@ -100,42 +100,56 @@ export class UsuariosService {
 
         // Buscar IDs por nombre en Prisma
         if (data.empresa) {
-          const res = await this.prisma.empresa.findFirst({ where: { nombre: data.empresa } });
+          const res = await this.prisma.empresa.findFirst({
+            where: { nombre: data.empresa },
+          });
           if (res) empresa_id = res.id;
         } else if (data.empresa_id) {
           empresa_id = Number(data.empresa_id);
         }
 
         if (data.gerencia) {
-          const res = await this.prisma.gerencia.findFirst({ where: { nombre: data.gerencia } });
+          const res = await this.prisma.gerencia.findFirst({
+            where: { nombre: data.gerencia },
+          });
           if (res) gerencia_id = res.id;
         } else if (data.gerencia_id) {
           gerencia_id = Number(data.gerencia_id);
         }
 
         if (data.sede) {
-          const res = await this.prisma.sede.findFirst({ where: { nombre: data.sede } });
+          const res = await this.prisma.sede.findFirst({
+            where: { nombre: data.sede },
+          });
           if (res) sede_id = res.id;
         } else if (data.sede_id) {
           sede_id = Number(data.sede_id);
         }
 
         if (data.area) {
-          const res = await this.prisma.area.findFirst({ where: { nombre: data.area } });
+          const res = await this.prisma.area.findFirst({
+            where: { nombre: data.area },
+          });
           if (res) area_id = res.id;
         } else if (data.area_id) {
           area_id = Number(data.area_id);
         }
 
         if (data.cargo) {
-          const res = await this.prisma.cargo.findFirst({ where: { nombre: data.cargo } });
+          const res = await this.prisma.cargo.findFirst({
+            where: { nombre: data.cargo },
+          });
           if (res) cargo_id = res.id;
         } else if (data.cargo_id) {
           cargo_id = Number(data.cargo_id);
         }
 
-        const nombreCompleto = data.nombre || `${data.nombres || ''} ${data.apellido_paterno || ''} ${data.apellido_materno || ''}`.trim();
-        const hash = data.contraseña ? await bcrypt.hash(data.contraseña, 10) : await bcrypt.hash(data.dni || '123456', 10);
+        const nombreCompleto =
+          data.nombre ||
+          `${data.nombres || ''} ${data.apellido_paterno || ''} ${data.apellido_materno || ''}`.trim();
+        const hash = data.contraseña
+          ? await bcrypt.hash(data.contraseña, 10)
+          : await bcrypt.hash(data.dni || '123456', 10);
 
         return {
           dni: data.dni ? String(data.dni) : null,
@@ -158,7 +172,7 @@ export class UsuariosService {
           cargo_id,
           activo: data.activo !== undefined ? data.activo : true,
         };
-      })
+      }),
     );
 
     try {
@@ -168,7 +182,9 @@ export class UsuariosService {
       });
       return { success: true, count: result.count };
     } catch (error) {
-      throw new BadRequestException('Error al importar usuarios masivamente. Verifique el formato y datos duplicados.');
+      throw new BadRequestException(
+        'Error al importar usuarios masivamente. Verifique el formato y datos duplicados.',
+      );
     }
   }
 
@@ -177,7 +193,9 @@ export class UsuariosService {
     if (data.correo) {
       const existing = await this.findByEmail(data.correo);
       if (existing && existing.id !== id) {
-        throw new BadRequestException('El correo ya está en uso por otro usuario corporativo.');
+        throw new BadRequestException(
+          'El correo ya está en uso por otro usuario corporativo.',
+        );
       }
     }
 
@@ -185,19 +203,21 @@ export class UsuariosService {
     if (data.dni) {
       const existingDni = await this.findByDni(data.dni);
       if (existingDni && existingDni.id !== id) {
-        throw new BadRequestException('El DNI ya está en uso por otro usuario.');
+        throw new BadRequestException(
+          'El DNI ya está en uso por otro usuario.',
+        );
       }
     }
 
     const updateData: any = { ...data };
-    
+
     if (data.contraseña) {
       updateData.contraseña = await bcrypt.hash(data.contraseña, 10);
     }
 
     return this.prisma.usuario.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
   }
 
@@ -205,7 +225,7 @@ export class UsuariosService {
     // Eliminación lógica (desactivar)
     return this.prisma.usuario.update({
       where: { id },
-      data: { activo: false }
+      data: { activo: false },
     });
   }
 }

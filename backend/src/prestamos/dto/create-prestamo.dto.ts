@@ -1,4 +1,11 @@
-import { IsInt, IsString, IsDateString, IsOptional, IsArray, ArrayNotEmpty } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsArray,
+  ArrayNotEmpty,
+} from 'class-validator';
 
 export class CreatePrestamoDto {
   @IsInt()
@@ -12,10 +19,14 @@ export class CreatePrestamoDto {
   @IsDateString()
   fecha_prestamo: string;
 
+  @IsOptional()
   @IsDateString()
-  fecha_devolucion: string;
+  fecha_devolucion?: string;
 
   @IsOptional()
   @IsString()
   firma_digital?: string;
+
+  @IsOptional()
+  activos_observaciones?: Record<string, string>;
 }

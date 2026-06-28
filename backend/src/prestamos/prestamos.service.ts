@@ -17,11 +17,11 @@ export class PrestamosService {
     private readonly mailerService: MailerService,
   ) {}
 
-  async create(createPrestamoDto: CreatePrestamoDto) {
+  async create(createPrestamoDto: CreatePrestamoDto, adminId: number) {
     const activos = await this.prisma.activo.findMany({
       where: { id: { in: createPrestamoDto.activos_ids } },
     });
-    
+
     if (activos.length !== createPrestamoDto.activos_ids.length) {
       throw new BadRequestException('Algunos activos no existen.');
     }
@@ -42,9 +42,10 @@ export class PrestamosService {
             usuario_id: createPrestamoDto.usuario_id,
             activo_id: activo_id,
             fecha_prestamo: new Date(createPrestamoDto.fecha_prestamo),
-            fecha_devolucion: new Date(createPrestamoDto.fecha_devolucion),
+            fecha_devolucion: createPrestamoDto.fecha_devolucion ? new Date(createPrestamoDto.fecha_devolucion) : null,
             estado: 'Activo',
             firma_digital: createPrestamoDto.firma_digital,
+            usuario_emisor_id: adminId,
           },
           include: {
             usuario: {
@@ -53,15 +54,21 @@ export class PrestamosService {
                 area: true,
                 cargo: true,
                 sede: true,
-              }
+              },
             },
             activo: true,
-          }
+          },
         });
+
+        const obs = createPrestamoDto.activos_observaciones?.[activo_id.toString()];
+        const updateData: any = { estado: 'Asignado' };
+        if (obs !== undefined) {
+          updateData.observaciones = obs;
+        }
 
         await prisma.activo.update({
           where: { id: activo_id },
-          data: { estado: 'Asignado' },
+          data: updateData,
         });
 
         creados.push(p);
@@ -71,18 +78,23 @@ export class PrestamosService {
 
     // Generar un solo PDF consolidado y enviar un solo correo
     try {
-      const pdfBuffer = await this.pdfService.generateLoanPdfMultiple(resultados);
-      const equiposList = resultados.map(p => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`).join('\n- ');
+      const pdfBuffer =
+        await this.pdfService.generateLoanPdfMultiple(resultados);
+      const equiposList = resultados
+        .map(
+          (p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`,
+        )
+        .join('\n- ');
       await this.mailerService.sendMail({
         to: resultados[0].usuario.correo,
         subject: `Acta de Entrega de Activos - ${resultados.length} equipo(s)`,
-        text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\nRecuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString()}.\n\nSaludos,\nEquipo VGI.`,
+        text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\n${resultados[0].fecha_devolucion ? `Recuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString()}.` : 'Recuerda que esta es una asignación permanente.'}\n\nSaludos,\nEquipo VGI.`,
         attachments: [
           {
             filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}.pdf`,
             content: pdfBuffer,
-          }
-        ]
+          },
+        ],
       });
       console.log('Correo consolidado enviado a', resultados[0].usuario.correo);
     } catch (err) {
@@ -95,7 +107,11 @@ export class PrestamosService {
   async findAll() {
     return this.prisma.prestamo.findMany({
       include: {
-        usuario: true,
+        usuario: {
+          include: { area: true, sede: true }
+        },
+        usuario_receptor: true,
+        usuario_emisor: true,
         activo: true,
       },
     });
@@ -106,6 +122,8 @@ export class PrestamosService {
       where: { id },
       include: {
         usuario: true,
+        usuario_receptor: true,
+        usuario_emisor: true,
         activo: true,
       },
     });
@@ -115,7 +133,7 @@ export class PrestamosService {
     return prestamo;
   }
 
-  async devolver(id: number, firma_devolucion: string) {
+  async devolver(id: number, firma_devolucion: string, adminId: number) {
     const prestamo = await this.findOne(id);
     if (prestamo.estado === 'Devuelto') {
       throw new BadRequestException('El préstamo ya fue devuelto.');
@@ -125,13 +143,20 @@ export class PrestamosService {
       throw new BadRequestException('Se requiere la firma de devolución.');
     }
 
-    return this.prisma.$transaction(async (prisma) => {
+    const transactionResult = await this.prisma.$transaction(async (prisma) => {
       const updatedPrestamo = await prisma.prestamo.update({
         where: { id },
-        data: { 
+        data: {
           estado: 'Devuelto',
           firma_devolucion,
           fecha_devolucion: new Date(),
+          usuario_receptor_id: adminId,
+        },
+        include: {
+          usuario: {
+            include: { empresa: true, area: true, cargo: true, sede: true },
+          },
+          activo: true,
         },
       });
 
@@ -142,6 +167,26 @@ export class PrestamosService {
 
       return updatedPrestamo;
     });
+
+    try {
+      const pdfBuffer = await this.pdfService.generateReturnPdfMultiple([transactionResult]);
+      await this.mailerService.sendMail({
+        to: transactionResult.usuario.correo,
+        subject: `Acta de Devolución de Activo`,
+        text: `Hola ${transactionResult.usuario.nombre},\n\nAdjuntamos el acta de devolución del equipo ${transactionResult.activo.tipo} (${transactionResult.activo.marca}).\n\nSaludos,\nEquipo VGI.`,
+        attachments: [
+          {
+            filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
+      console.log('Correo de devolución enviado a', transactionResult.usuario.correo);
+    } catch (err) {
+      console.error('Error al generar PDF o enviar correo de devolución', err);
+    }
+
+    return transactionResult;
   }
 
   async findActiveByUserDni(dni: string) {
@@ -164,13 +209,13 @@ export class PrestamosService {
             area: true,
             cargo: true,
             sede: true,
-          }
-        }
+          },
+        },
       },
     });
   }
 
-  async devolverLote(prestamosIds: number[], firma_devolucion: string) {
+  async devolverLote(prestamosIds: number[], firma_devolucion: string, observacionesActivos: Record<string, string>, devuelto_por_tercero: string, adminId: number) {
     if (!prestamosIds || prestamosIds.length === 0) {
       throw new BadRequestException('Debe seleccionar al menos un préstamo.');
     }
@@ -188,11 +233,13 @@ export class PrestamosService {
 
     for (const p of prestamos) {
       if (p.estado === 'Devuelto') {
-        throw new BadRequestException(`El préstamo con ID ${p.id} ya fue devuelto.`);
+        throw new BadRequestException(
+          `El préstamo con ID ${p.id} ya fue devuelto.`,
+        );
       }
     }
 
-    return this.prisma.$transaction(async (prisma) => {
+    const transactionResult = await this.prisma.$transaction(async (prisma) => {
       const resultados: any[] = [];
       for (const p of prestamos) {
         const updated = await prisma.prestamo.update({
@@ -201,16 +248,55 @@ export class PrestamosService {
             estado: 'Devuelto',
             firma_devolucion,
             fecha_devolucion: new Date(),
+            usuario_receptor_id: adminId,
+            devuelto_por_tercero: devuelto_por_tercero || null,
+          },
+          include: {
+            usuario: {
+              include: { empresa: true, area: true, cargo: true, sede: true },
+            },
+            activo: true,
           },
         });
+
+        const obs = observacionesActivos?.[p.id.toString()];
+        const updateActivoData: any = { estado: 'Disponible' };
+        if (obs !== undefined) {
+          updateActivoData.observaciones = obs;
+        }
+
         await prisma.activo.update({
           where: { id: p.activo_id },
-          data: { estado: 'Disponible' },
+          data: updateActivoData,
         });
         resultados.push(updated);
       }
       return resultados;
     });
+
+    try {
+      const pdfBuffer = await this.pdfService.generateReturnPdfMultiple(transactionResult);
+      const equiposList = transactionResult
+        .map((p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`)
+        .join('\n- ');
+      
+      await this.mailerService.sendMail({
+        to: transactionResult[0].usuario.correo,
+        subject: `Acta de Devolución de Activos - ${transactionResult.length} equipo(s)`,
+        text: `Hola ${transactionResult[0].usuario.nombre},\n\nAdjuntamos el acta de devolución de los siguientes equipos:\n- ${equiposList}\n\nSaludos,\nEquipo VGI.`,
+        attachments: [
+          {
+            filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
+      console.log('Correo consolidado de devolución enviado a', transactionResult[0].usuario.correo);
+    } catch (err) {
+      console.error('Error al generar PDF o enviar correo de devolución', err);
+    }
+
+    return transactionResult;
   }
 
   async update(id: number, updatePrestamoDto: UpdatePrestamoDto) {
@@ -238,11 +324,15 @@ export class PrestamosService {
         firma_digital: prestamo.firma_digital ? { not: null } : undefined,
       },
       include: {
-        usuario: { include: { empresa: true, area: true, cargo: true, sede: true } },
+        usuario: {
+          include: { empresa: true, area: true, cargo: true, sede: true },
+        },
         activo: true,
       },
     });
-    return this.pdfService.generateLoanPdfMultiple(related.length > 0 ? related : [prestamo]);
+    return this.pdfService.generateLoanPdfMultiple(
+      related.length > 0 ? related : [prestamo],
+    );
   }
 
   async getReturnPdf(id: number) {
@@ -252,13 +342,19 @@ export class PrestamosService {
       where: {
         usuario_id: prestamo.usuario_id,
         estado: 'Devuelto',
-        firma_devolucion: prestamo.firma_devolucion ? prestamo.firma_devolucion : undefined,
+        firma_devolucion: prestamo.firma_devolucion
+          ? prestamo.firma_devolucion
+          : undefined,
       },
       include: {
-        usuario: { include: { empresa: true, area: true, cargo: true, sede: true } },
+        usuario: {
+          include: { empresa: true, area: true, cargo: true, sede: true },
+        },
         activo: true,
       },
     });
-    return this.pdfService.generateReturnPdfMultiple(related.length > 0 ? related : [prestamo]);
+    return this.pdfService.generateReturnPdfMultiple(
+      related.length > 0 ? related : [prestamo],
+    );
   }
 }

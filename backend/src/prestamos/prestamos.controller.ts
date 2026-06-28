@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Res,
+  Req,
 } from '@nestjs/common';
 import { PrestamosService } from './prestamos.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
@@ -23,8 +24,9 @@ export class PrestamosController {
 
   @Roles(1, 2)
   @Post()
-  create(@Body() createPrestamoDto: CreatePrestamoDto) {
-    return this.prestamosService.create(createPrestamoDto);
+  create(@Body() createPrestamoDto: CreatePrestamoDto, @Req() req: any) {
+    const adminId = req.user.sub;
+    return this.prestamosService.create(createPrestamoDto, adminId);
   }
 
   @Roles(1, 2, 3)
@@ -83,8 +85,12 @@ export class PrestamosController {
   devolverLote(
     @Body('prestamos_ids') prestamosIds: number[],
     @Body('firma_devolucion') firma_devolucion: string,
+    @Body('observaciones_activos') observacionesActivos: Record<string, string>,
+    @Body('devuelto_por_tercero') devueltoPorTercero: string,
+    @Req() req: any,
   ) {
-    return this.prestamosService.devolverLote(prestamosIds, firma_devolucion);
+    const adminId = req.user.sub;
+    return this.prestamosService.devolverLote(prestamosIds, firma_devolucion, observacionesActivos, devueltoPorTercero, adminId);
   }
 
   @Roles(1, 2)
@@ -92,8 +98,10 @@ export class PrestamosController {
   devolver(
     @Param('id') id: string,
     @Body('firma_devolucion') firma_devolucion: string,
+    @Req() req: any,
   ) {
-    return this.prestamosService.devolver(+id, firma_devolucion);
+    const adminId = req.user.sub;
+    return this.prestamosService.devolver(+id, firma_devolucion, adminId);
   }
 
   @Roles(1)

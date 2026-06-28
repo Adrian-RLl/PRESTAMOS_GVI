@@ -45,6 +45,12 @@ export class ActivosController {
   }
 
   @Roles(1, 2, 3)
+  @Get('sugerencias/:query')
+  findSugerencias(@Param('query') query: string) {
+    return this.activosService.findSugerencias(query);
+  }
+
+  @Roles(1, 2, 3)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.activosService.findOne(+id);

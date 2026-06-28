@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: 'http://localhost:3001', // El backend corre en el puerto 3001
+  baseURL: typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -93,5 +93,6 @@ export interface Prestamo {
   firma_digital?: string;
   firma_devolucion?: string;
   usuario?: Usuario;
+  usuario_receptor?: Usuario;
   activo?: Activo;
 }

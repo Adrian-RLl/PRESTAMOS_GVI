@@ -67,8 +67,12 @@ export default function FirmaPrestamo() {
         usuario_id: parseInt(prestamoData.usuario_id),
         activos_ids: prestamoData.activos.map((a: Activo) => a.id),
         fecha_prestamo: new Date(prestamoData.fecha_prestamo).toISOString(),
-        fecha_devolucion: new Date(prestamoData.fecha_devolucion).toISOString(),
-        firma_digital: firmaDigital
+        fecha_devolucion: prestamoData.fecha_devolucion ? new Date(prestamoData.fecha_devolucion).toISOString() : null,
+        firma_digital: firmaDigital,
+        activos_observaciones: prestamoData.activos.reduce((acc, activo) => {
+          if (activo.observaciones) acc[activo.id] = activo.observaciones;
+          return acc;
+        }, {} as Record<string, string>)
       });
       sessionStorage.removeItem('nuevoPrestamo');
       router.push('/prestamos');
@@ -147,7 +151,9 @@ export default function FirmaPrestamo() {
               <CheckCircle size={20} className="text-blue-500 mt-0.5 flex-shrink-0" />
               <p className="text-sm font-medium">
                 Declaro haber recibido los activos listados en perfectas condiciones de funcionamiento. 
-                Me comprometo a cuidarlos y devolverlos a más tardar el <strong>{new Date(prestamoData.fecha_devolucion).toLocaleDateString()}</strong>. 
+                {prestamoData.fecha_devolucion 
+                  ? ` Me comprometo a cuidarlos y devolverlos a más tardar el ${new Date(prestamoData.fecha_devolucion).toLocaleDateString()}. `
+                  : ` Me comprometo a cuidarlos mientras dure esta asignación permanente. `}
                 En caso de pérdida o daño por negligencia, asumo la responsabilidad correspondiente.
               </p>
             </div>

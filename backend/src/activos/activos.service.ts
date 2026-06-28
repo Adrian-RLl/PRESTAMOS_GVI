@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { CreateActivoDto } from './dto/create-activo.dto';
 import { UpdateActivoDto } from './dto/update-activo.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,7 +23,7 @@ export class ActivosService {
         let empresa_id: number | null = null;
         if (activo.empresa) {
           const emp = await this.prisma.empresa.findFirst({
-            where: { nombre: activo.empresa }
+            where: { nombre: activo.empresa },
           });
           if (emp) {
             empresa_id = emp.id;
@@ -41,7 +45,7 @@ export class ActivosService {
           orden_compra: activo.orden_compra || '',
           empresa_id: empresa_id,
         };
-      })
+      }),
     );
 
     return this.prisma.activo.createMany({
@@ -55,15 +59,29 @@ export class ActivosService {
       include: {
         prestamos: {
           where: { estado: 'Activo' },
-          include: { usuario: true }
-        }
-      }
+          include: { usuario: true },
+        },
+      },
     });
   }
 
   async findBySerie(serie: string) {
     return this.prisma.activo.findFirst({
-      where: { serie: serie }
+      where: { serie: serie },
+    });
+  }
+
+  async findSugerencias(query: string) {
+    return this.prisma.activo.findMany({
+      where: {
+        OR: [
+          { serie: { contains: query } },
+          { marca: { contains: query } },
+          { modelo: { contains: query } },
+        ],
+        estado: 'Disponible', // Sugerimos solo los disponibles
+      },
+      take: 10,
     });
   }
 
@@ -87,10 +105,12 @@ export class ActivosService {
 
   async remove(id: number) {
     const activo = await this.findOne(id); // Verifica si existe
-    
+
     // Si el activo está asignado (prestado), no se debe dar de baja
     if (activo.estado === 'Asignado') {
-      throw new BadRequestException('No se puede dar de baja un activo que se encuentra asignado (en préstamo).');
+      throw new BadRequestException(
+        'No se puede dar de baja un activo que se encuentra asignado (en préstamo).',
+      );
     }
 
     return this.prisma.activo.update({

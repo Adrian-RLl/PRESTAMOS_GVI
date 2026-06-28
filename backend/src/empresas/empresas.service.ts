@@ -22,6 +22,9 @@ export class EmpresasService {
   }
 
   remove(id: number) {
-    return this.prisma.empresa.update({ where: { id }, data: { estado: false } });
+    return this.prisma.empresa.update({
+      where: { id },
+      data: { estado: false },
+    });
   }
 }

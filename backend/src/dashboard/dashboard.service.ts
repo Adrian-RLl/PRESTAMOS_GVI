@@ -8,20 +8,20 @@ export class DashboardService {
   async getStats() {
     // 1. Total de Activos
     const totalActivos = await this.prisma.activo.count();
-    
+
     // 2. Activos Prestados (Asignados)
     const activosPrestados = await this.prisma.activo.count({
-      where: { estado: 'Asignado' }
+      where: { estado: 'Asignado' },
     });
 
     // 3. Activos Disponibles
     const activosDisponibles = await this.prisma.activo.count({
-      where: { estado: 'Disponible' }
+      where: { estado: 'Disponible' },
     });
 
     // 4. Préstamos Activos (que aún no han sido devueltos)
     const prestamosActivos = await this.prisma.prestamo.count({
-      where: { estado: 'Activo' }
+      where: { estado: 'Activo' },
     });
 
     // 5. Total de Usuarios (para el KPI adicional)
@@ -33,13 +33,13 @@ export class DashboardService {
       orderBy: { fecha_prestamo: 'desc' },
       include: {
         usuario: { select: { nombre: true } },
-        activo: { select: { serie: true, tipo: true, marca: true } }
-      }
+        activo: { select: { serie: true, tipo: true, marca: true } },
+      },
     });
 
     // 7. Distribución de estado de activos para el gráfico (Donut chart)
     const activosMantenimiento = await this.prisma.activo.count({
-      where: { estado: 'Mantenimiento' }
+      where: { estado: 'Mantenimiento' },
     });
 
     const distribucionActivos = [
@@ -57,7 +57,7 @@ export class DashboardService {
         totalUsuarios,
       },
       actividadReciente,
-      distribucionActivos
+      distribucionActivos,
     };
   }
 }

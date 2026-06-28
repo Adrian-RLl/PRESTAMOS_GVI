@@ -13,6 +13,9 @@ export default function DevolucionesPage() {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterArea, setFilterArea] = useState('Todas');
+  const [filterSede, setFilterSede] = useState('Todas');
+  const [filterDate, setFilterDate] = useState('');
 
   const fetchPrestamos = async () => {
     try {
@@ -45,23 +48,45 @@ export default function DevolucionesPage() {
 
   const devoluciones = prestamos.filter(p => p.estado === 'Devuelto');
 
+  const uniqueAreas = Array.from(new Set(devoluciones.map(p => (p.usuario as any)?.area?.nombre).filter(Boolean))) as string[];
+  const uniqueSedes = Array.from(new Set(devoluciones.map(p => (p.usuario as any)?.sede?.nombre).filter(Boolean))) as string[];
+
   const filteredDevoluciones = devoluciones.filter(d => {
-    const term = searchTerm.toLowerCase();
-    if (!term) return true;
+    // Filtro Área
+    const area = (d.usuario as any)?.area?.nombre;
+    if (filterArea !== 'Todas' && area !== filterArea) return false;
     
-    return (
-      (d.activo?.tipo || '').toLowerCase().includes(term) ||
-      (d.activo?.marca || '').toLowerCase().includes(term) ||
-      (d.activo?.modelo || '').toLowerCase().includes(term) ||
-      (d.activo?.serie || '').toLowerCase().includes(term) ||
-      (d.usuario?.nombre || '').toLowerCase().includes(term) ||
-      (d.usuario?.dni || '').includes(term)
-    );
+    // Filtro Sede
+    const sede = (d.usuario as any)?.sede?.nombre;
+    if (filterSede !== 'Todas' && sede !== filterSede) return false;
+    
+    // Filtro Fecha (Fecha de Devolución)
+    if (filterDate && d.fecha_devolucion) {
+      const dDate = new Date(d.fecha_devolucion).toISOString().split('T')[0];
+      if (dDate !== filterDate) return false;
+    }
+    
+    // Filtro Búsqueda Texto
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchText = [
+        d.usuario?.nombre,
+        d.usuario?.dni,
+        d.activo?.serie,
+        d.activo?.marca,
+        d.activo?.tipo,
+        d.usuario_receptor?.nombre // Analista que recibió la devolución
+      ].join(' ').toLowerCase();
+      
+      if (!matchText.includes(term)) return false;
+    }
+
+    return true;
   });
 
   return (
     <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-8">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Historial de Devoluciones</h1>
           <p className="text-slate-500 mt-1">Registro y constancias de devolución de activos</p>
@@ -77,15 +102,49 @@ export default function DevolucionesPage() {
         )}
       </div>
 
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-        <input 
-          type="text" 
-          placeholder="Buscar por DNI, nombre, tipo de activo, marca o serie..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-        />
+      {/* Filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Buscar</label>
+          <input 
+            type="text"
+            placeholder="Usuario, serie, analista..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Área</label>
+          <select 
+            value={filterArea}
+            onChange={(e) => setFilterArea(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 bg-white"
+          >
+            <option value="Todas">Todas las áreas</option>
+            {uniqueAreas.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Sede</label>
+          <select 
+            value={filterSede}
+            onChange={(e) => setFilterSede(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 bg-white"
+          >
+            <option value="Todas">Todas las sedes</option>
+            {uniqueSedes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Fecha Devolución</label>
+          <input 
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 bg-white"
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -98,17 +157,18 @@ export default function DevolucionesPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm">
                 <th className="p-4 font-semibold">Activo</th>
-                <th className="p-4 font-semibold">Usuario</th>
+                <th className="p-4 font-semibold">Usuario y Área</th>
                 <th className="p-4 font-semibold">Fechas</th>
                 <th className="p-4 font-semibold">Estado</th>
+                <th className="p-4 font-semibold">Analista (Receptor)</th>
                 <th className="p-4 font-semibold text-right">Constancia</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredDevoluciones.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500">
-                    No hay devoluciones registradas.
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    No hay devoluciones registradas con el filtro actual.
                   </td>
                 </tr>
               ) : (
@@ -120,16 +180,21 @@ export default function DevolucionesPage() {
                     </td>
                     <td className="p-4">
                       <div className="font-medium text-slate-700">{prestamo.usuario?.nombre}</div>
-                      <div className="text-xs text-slate-500">DNI: {prestamo.usuario?.dni || 'No registrado'}</div>
+                      <div className="text-xs text-slate-500">{(prestamo.usuario as any)?.area?.nombre} | {(prestamo.usuario as any)?.sede?.nombre}</div>
                     </td>
                     <td className="p-4">
-                      <div className="text-slate-800 text-sm">Entrega: {new Date(prestamo.fecha_prestamo).toLocaleDateString()}</div>
-                      <div className="text-emerald-600 text-sm font-medium">Devuelto: {new Date(prestamo.fecha_devolucion).toLocaleDateString()}</div>
+                      <div className="text-slate-800 text-sm">Entregado: {new Date(prestamo.fecha_prestamo).toLocaleDateString()}</div>
+                      <div className="text-emerald-600 text-sm font-medium">Devuelto: {new Date(prestamo.fecha_devolucion!).toLocaleDateString()}</div>
                     </td>
                     <td className="p-4">
                       <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
                         {prestamo.estado}
                       </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="text-slate-700 font-medium text-sm">
+                        {prestamo.usuario_receptor?.nombre || <span className="text-slate-400 italic font-normal">S/R</span>}
+                      </div>
                     </td>
                     <td className="p-4 text-right font-medium">
                       <button 

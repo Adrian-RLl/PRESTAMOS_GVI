@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Fragment } from 'react';
-import { PlusCircle, Edit, Trash2, FileSpreadsheet, X, Save } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, FileSpreadsheet } from 'lucide-react';
 import { api, Activo } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
@@ -30,18 +30,6 @@ export default function ActivosPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    tipo: '',
-    marca: '',
-    modelo: '',
-    serie: '',
-    estado: 'Disponible',
-    ubicacion: '',
-    observaciones: ''
-  });
-  const [saving, setSaving] = useState(false);
-
   // Import State
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -54,10 +42,6 @@ export default function ActivosPage() {
     setCurrentPage(1);
   }, [searchTerm, filterEstado, filterTipo, filterOrden]);
 
-  useEffect(() => {
-    fetchActivos();
-  }, []);
-
   const fetchActivos = async () => {
     try {
       const response = await api.get('/activos');
@@ -68,6 +52,10 @@ export default function ActivosPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchActivos();
+  }, []);
 
   const deleteActivo = async (id: number) => {
     if (confirm("¿Estás seguro de eliminar este activo?")) {
@@ -81,33 +69,7 @@ export default function ActivosPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await api.post('/activos', formData);
-      setIsModalOpen(false);
-      setFormData({
-        tipo: '',
-        marca: '',
-        modelo: '',
-        serie: '',
-        estado: 'Disponible',
-        ubicacion: '',
-        observaciones: ''
-      });
-      fetchActivos();
-    } catch (error) {
-      console.error("Error saving activo", error);
-      alert("Error al guardar el activo. Verifique que el código patrimonial no esté duplicado.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

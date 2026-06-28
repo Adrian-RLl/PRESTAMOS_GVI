@@ -34,7 +34,7 @@ async function main() {
   // Comprobar si el usuario admin ya existe
   const adminRol = await prisma.rol.findFirst({ where: { nombre: 'Administrador' } });
   const existingUser = await prisma.usuario.findUnique({
-    where: { correo: 'admin@vgi.com' }
+    where: { correo: 'admin@vanguardfresh.pe' }
   });
 
   if (!existingUser && adminRol) {
@@ -43,7 +43,7 @@ async function main() {
     await prisma.usuario.create({
       data: {
         nombre: 'Administrador VGI',
-        correo: 'admin@vgi.com',
+        correo: 'admin@vanguardfresh.pe',
         contraseña: hashPassword,
         rol_id: adminRol.id,
         empresa_id: empresa.id,
@@ -52,7 +52,7 @@ async function main() {
       }
     });
     console.log('✅ Usuario Administrador creado exitosamente.');
-    console.log('Correo: admin@vgi.com');
+    console.log('Correo: admin@vanguardfresh.pe');
     console.log('Contraseña: admin123');
   } else {
     console.log('El usuario admin ya existe en la base de datos.');

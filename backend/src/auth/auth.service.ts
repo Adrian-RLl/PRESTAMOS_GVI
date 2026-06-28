@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -28,7 +32,11 @@ export class AuthService {
 
     return {
       mensaje: 'Usuario creado',
-      usuario: { id: usuario.id, nombre: usuario.nombre, correo: usuario.correo },
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        correo: usuario.correo,
+      },
     };
   }
 
@@ -38,7 +46,7 @@ export class AuthService {
     if (!usuario) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    
+
     if (!usuario.activo) {
       throw new UnauthorizedException('Su cuenta ha sido desactivada');
     }
@@ -50,7 +58,9 @@ export class AuthService {
       if (ahora < bloqueadoHasta) {
         const msRestantes = bloqueadoHasta.getTime() - ahora.getTime();
         const minutosRestantes = Math.ceil(msRestantes / (1000 * 60));
-        throw new UnauthorizedException(`Su cuenta está bloqueada por seguridad. Inténtalo de nuevo en ${minutosRestantes} minutos`);
+        throw new UnauthorizedException(
+          `Su cuenta está bloqueada por seguridad. Inténtalo de nuevo en ${minutosRestantes} minutos`,
+        );
       } else {
         // Si el tiempo de bloqueo ya expiró, reiniciamos el contador de intentos fallidos
         await this.prisma.usuario.update({
@@ -70,13 +80,15 @@ export class AuthService {
       if (nuevosIntentos >= 4) {
         const quinceMinutos = new Date(Date.now() + 15 * 60 * 1000);
         dataActualizar.bloqueado_hasta = quinceMinutos;
-        
+
         await this.prisma.usuario.update({
           where: { id: usuario.id },
           data: dataActualizar,
         });
 
-        throw new UnauthorizedException('Su cuenta ha sido bloqueada temporalmente por 15 minutos debido a 4 intentos fallidos.');
+        throw new UnauthorizedException(
+          'Su cuenta ha sido bloqueada temporalmente por 15 minutos debido a 4 intentos fallidos.',
+        );
       } else {
         await this.prisma.usuario.update({
           where: { id: usuario.id },
@@ -84,7 +96,9 @@ export class AuthService {
         });
 
         const intentosRestantes = 4 - nuevosIntentos;
-        throw new UnauthorizedException(`Credenciales inválidas. Le quedan ${intentosRestantes} intentos antes del bloqueo.`);
+        throw new UnauthorizedException(
+          `Credenciales inválidas. Le quedan ${intentosRestantes} intentos antes del bloqueo.`,
+        );
       }
     }
 
@@ -99,7 +113,11 @@ export class AuthService {
       });
     }
 
-    const payload = { sub: usuario.id, email: usuario.correo, rol: usuario.rol_id };
+    const payload = {
+      sub: usuario.id,
+      email: usuario.correo,
+      rol: usuario.rol_id,
+    };
     const token = await this.jwtService.signAsync(payload);
 
     return {
@@ -111,7 +129,7 @@ export class AuthService {
         correo: usuario.correo,
         rol_id: usuario.rol_id,
         activo: usuario.activo,
-      }
+      },
     };
   }
 
@@ -119,7 +137,10 @@ export class AuthService {
     const usuario = await this.usuariosService.findByEmail(correo);
     if (!usuario) {
       // Por seguridad para evitar enumeración de usuarios, respondemos con el mismo mensaje de éxito
-      return { mensaje: 'Si el correo está registrado, se enviará un enlace de recuperación.' };
+      return {
+        mensaje:
+          'Si el correo está registrado, se enviará un enlace de recuperación.',
+      };
     }
 
     const crypto = require('crypto');
@@ -168,7 +189,10 @@ export class AuthService {
     console.log(url);
     console.log('=============================================\n');
 
-    return { mensaje: 'Si el correo está registrado, se enviará un enlace de recuperación.' };
+    return {
+      mensaje:
+        'Si el correo está registrado, se enviará un enlace de recuperación.',
+    };
   }
 
   async resetPassword(token: string, contrasena: string) {
@@ -177,7 +201,9 @@ export class AuthService {
     });
 
     if (!usuario || !usuario.recuperar_expira) {
-      throw new BadRequestException('El enlace de recuperación es inválido o ya fue utilizado.');
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido o ya fue utilizado.',
+      );
     }
 
     const ahora = new Date();

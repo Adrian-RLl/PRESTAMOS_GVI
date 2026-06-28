@@ -15,11 +15,13 @@ export class PrestamosCronService {
   // Se ejecuta todos los días a las 8:00 AM
   @Cron('0 8 * * *')
   async handleCron() {
-    this.logger.debug('Ejecutando tarea programada: Verificación de devoluciones próximas');
+    this.logger.debug(
+      'Ejecutando tarea programada: Verificación de devoluciones próximas',
+    );
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     // Obtener inicio y fin del día de mañana para buscar coincidencias
     const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0));
     const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999));
@@ -40,15 +42,19 @@ export class PrestamosCronService {
       });
 
       if (prestamosPorVencer.length > 0) {
-        this.logger.log(`Se encontraron ${prestamosPorVencer.length} préstamos a punto de vencer. Enviando correos...`);
+        this.logger.log(
+          `Se encontraron ${prestamosPorVencer.length} préstamos a punto de vencer. Enviando correos...`,
+        );
 
         for (const prestamo of prestamosPorVencer) {
           await this.mailerService.sendMail({
             to: prestamo.usuario.correo,
             subject: 'Recordatorio: Devolución de Equipo Informático VGI',
-            text: `Hola ${prestamo.usuario.nombre},\n\nEste es un recordatorio automático de que tu préstamo del equipo ${prestamo.activo.tipo} (${prestamo.activo.marca}) vence el día de MAÑANA (${new Date(prestamo.fecha_devolucion).toLocaleDateString()}).\n\nPor favor acércate a devolver el equipo para evitar penalizaciones.\n\nAtentamente,\nEquipo VGI.`,
+            text: `Hola ${prestamo.usuario.nombre},\n\nEste es un recordatorio automático de que tu préstamo del equipo ${prestamo.activo.tipo} (${prestamo.activo.marca}) vence el día de MAÑANA (${new Date(prestamo.fecha_devolucion!).toLocaleDateString()}).\n\nPor favor acércate a devolver el equipo para evitar penalizaciones.\n\nAtentamente,\nEquipo VGI.`,
           });
-          this.logger.log(`Correo de recordatorio enviado a ${prestamo.usuario.correo}`);
+          this.logger.log(
+            `Correo de recordatorio enviado a ${prestamo.usuario.correo}`,
+          );
         }
       }
     } catch (error) {

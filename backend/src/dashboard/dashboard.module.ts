@@ -7,6 +7,6 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [PrismaModule, AuthModule],
   providers: [DashboardService],
-  controllers: [DashboardController]
+  controllers: [DashboardController],
 })
 export class DashboardModule {}

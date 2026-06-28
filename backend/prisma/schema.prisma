@@ -88,7 +88,9 @@ model Usuario {
   recuperar_token    String?    @unique
   recuperar_expira   DateTime?
 
-  prestamos        Prestamo[]
+  prestamos                Prestamo[] @relation("PrestamosUsuario")
+  devoluciones_procesadas  Prestamo[] @relation("PrestamosReceptor")
+  entregas_procesadas      Prestamo[] @relation("PrestamosEmisor")
   fecha_creacion   DateTime   @default(now())
 }
 
@@ -114,13 +116,22 @@ model Activo {
 
 model Prestamo {
   id               Int      @id @default(autoincrement())
-  usuario_id       Int
-  activo_id        Int
-  fecha_prestamo   DateTime
-  fecha_devolucion DateTime
-  estado           String
-  firma_digital    String?  @db.Text
-  firma_devolucion String?  @db.Text
-  usuario          Usuario  @relation(fields: [usuario_id], references: [id])
-  activo           Activo   @relation(fields: [activo_id], references: [id])
+  usuario_id          Int
+  activo_id           Int
+  fecha_prestamo      DateTime
+  fecha_devolucion    DateTime?
+  estado              String
+  firma_digital       String?  @db.Text
+  firma_devolucion    String?  @db.Text
+  devuelto_por_tercero String?
+  
+  usuario             Usuario  @relation("PrestamosUsuario", fields: [usuario_id], references: [id])
+  
+  usuario_receptor_id Int?
+  usuario_receptor    Usuario? @relation("PrestamosReceptor", fields: [usuario_receptor_id], references: [id])
+  
+  usuario_emisor_id   Int?
+  usuario_emisor      Usuario? @relation("PrestamosEmisor", fields: [usuario_emisor_id], references: [id])
+  
+  activo              Activo   @relation(fields: [activo_id], references: [id])
 }
