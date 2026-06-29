@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from 'react-hot-toast';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -61,11 +62,11 @@ export default function NuevoUsuario() {
         ]);
 
         setCatalogos({
-          empresas: empresas.data,
-          gerencias: gerencias.data,
-          sedes: sedes.data,
-          areas: areas.data,
-          cargos: cargos.data,
+          empresas: empresas.data.filter((x: any) => x.estado),
+          gerencias: gerencias.data.filter((x: any) => x.estado),
+          sedes: sedes.data.filter((x: any) => x.estado),
+          areas: areas.data.filter((x: any) => x.estado),
+          cargos: cargos.data.filter((x: any) => x.estado),
         });
       } catch (err) {
         console.error('Error cargando catálogos:', err);
@@ -103,7 +104,7 @@ export default function NuevoUsuario() {
       router.push('/personal');
     } catch (error) {
       console.error('Error al crear usuario:', error);
-      alert('Hubo un error al crear el usuario. Verifica tus permisos y los datos.');
+      toast.error('Hubo un error al crear el usuario. Verifica tus permisos y los datos.');
     } finally {
       setLoading(false);
     }
@@ -144,11 +145,11 @@ export default function NuevoUsuario() {
         }));
 
         await api.post('/usuarios/lote', batch);
-        alert(`Se importaron los usuarios correctamente.`);
+        toast.success(`Se importaron los usuarios correctamente.`);
         router.push('/personal');
       } catch (error: any) {
         console.error("Error importing excel", error);
-        alert(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
+        toast.error(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
       } finally {
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -230,7 +231,7 @@ export default function NuevoUsuario() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">DNI *</label>
-            <input type="text" name="dni" required value={formData.dni} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
+            <input type="text" name="dni" required value={formData.dni} onChange={handleChange} maxLength={8} pattern="\d{8}" title="El DNI debe tener 8 dígitos numéricos" className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -308,7 +309,7 @@ export default function NuevoUsuario() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">Celular Empresa</label>
-            <input type="text" name="celular_empresa" value={formData.celular_empresa} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
+            <input type="text" name="celular_empresa" value={formData.celular_empresa} onChange={handleChange} maxLength={9} pattern="\d{9}" title="Debe tener 9 dígitos numéricos" className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
           </div>
           
           <div className="flex flex-col gap-2 justify-center pt-6">
@@ -329,12 +330,12 @@ export default function NuevoUsuario() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">Teléfono Fijo</label>
-            <input type="text" name="telefono_personal" value={formData.telefono_personal} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
+            <input type="text" name="telefono_personal" value={formData.telefono_personal} onChange={handleChange} maxLength={9} pattern="\d{9}" title="Debe tener 9 dígitos numéricos" className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-700">Celular Personal</label>
-            <input type="text" name="celular_personal" value={formData.celular_personal} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
+            <input type="text" name="celular_personal" value={formData.celular_personal} onChange={handleChange} maxLength={9} pattern="\d{9}" title="Debe tener 9 dígitos numéricos" className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
           </div>
         </div>
 

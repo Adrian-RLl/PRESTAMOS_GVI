@@ -46,6 +46,7 @@ export interface Activo {
   ubicacion: string;
   observaciones?: string;
   orden_compra?: string;
+  fecha_creacion?: string;
   prestamos?: Prestamo[];
 }
 

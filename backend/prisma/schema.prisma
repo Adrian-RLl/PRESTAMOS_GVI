@@ -49,6 +49,12 @@ model Sede {
   usuarios Usuario[]
 }
 
+model TipoActivo {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  estado   Boolean   @default(true)
+}
+
 model Usuario {
   id               Int        @id @default(autoincrement())
   dni              String?    @unique
@@ -106,6 +112,7 @@ model Activo {
   observaciones      String?
   fecha_asignacion   DateTime?
   vigencia           String?
+  fecha_creacion     DateTime   @default(now())
   
   empresa_id         Int?
   empresa            Empresa?   @relation(fields: [empresa_id], references: [id])

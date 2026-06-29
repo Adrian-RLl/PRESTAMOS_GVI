@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save, PenTool } from 'lucide-react';
@@ -31,7 +32,7 @@ export default function DevolverPrestamo() {
         setPrestamo(res.data);
       }).catch(err => {
         console.error("Error al obtener préstamo", err);
-        alert("No se pudo cargar el préstamo.");
+        toast.error("No se pudo cargar el préstamo.");
         router.push('/prestamos');
       }).finally(() => {
         setFetching(false);
@@ -46,7 +47,7 @@ export default function DevolverPrestamo() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sigCanvas.current?.isEmpty()) {
-      alert("Por favor, proporcione una firma digital de devolución.");
+      toast.error("Por favor, proporcione una firma digital de devolución.");
       return;
     }
 
@@ -59,12 +60,12 @@ export default function DevolverPrestamo() {
       await api.post(`/prestamos/${params.id}/devolver`, {
         firma_devolucion: firmaDevolucion
       });
-      alert("Devolución registrada exitosamente.");
+      toast.success("Devolución registrada exitosamente.");
       router.push('/prestamos');
     } catch (error) {
       console.error(error);
       const errMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Error al procesar la devolución';
-      alert(errMessage);
+      toast.error(errMessage);
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ export default function DevolverPrestamo() {
 
                 <div>
                   <p className="text-sm font-medium text-slate-500">Fecha Límite de Devolución</p>
-                  <p className="font-semibold text-slate-800">{new Date(prestamo.fecha_devolucion).toLocaleDateString()}</p>
+                  <p className="font-semibold text-slate-800">{new Date(prestamo.fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}</p>
                 </div>
               </div>
             </div>

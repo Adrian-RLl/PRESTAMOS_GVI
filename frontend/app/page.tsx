@@ -40,7 +40,7 @@ export default function Home() {
   if (isLoading || !token) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -50,10 +50,10 @@ export default function Home() {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            Panel de Control <ShieldCheck className="text-emerald-400" size={28} />
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 flex items-center gap-2">
+            Panel de Control <ShieldCheck className="text-emerald-500" size={28} />
           </h1>
-          <p className="text-slate-400 mt-1">Resumen general del sistema de activos VGI</p>
+          <p className="text-slate-500 mt-1">Resumen general del sistema de activos VGI</p>
         </div>
         
         {user && user.rol_id !== 3 && (
@@ -70,7 +70,7 @@ export default function Home() {
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       ) : stats ? (
         <div className="space-y-6">
@@ -80,19 +80,25 @@ export default function Home() {
               title="Total Activos" 
               value={stats.kpis.totalActivos} 
               icon={Package} 
-              colorClass="border-blue-500/20"
+              colorClass="border-blue-200 bg-blue-50/50"
+              iconColor="text-blue-600"
+              iconBg="bg-blue-100"
             />
             <KpiCard 
               title="Activos Asignados" 
               value={stats.kpis.activosPrestados} 
               icon={ClipboardList} 
-              colorClass="border-indigo-500/20"
+              colorClass="border-indigo-200 bg-indigo-50/50"
+              iconColor="text-indigo-600"
+              iconBg="bg-indigo-100"
             />
             <KpiCard 
               title="Activos Disponibles" 
               value={stats.kpis.activosDisponibles} 
               icon={CheckCircle} 
-              colorClass="border-emerald-500/20"
+              colorClass="border-emerald-200 bg-emerald-50/50"
+              iconColor="text-emerald-600"
+              iconBg="bg-emerald-100"
             />
           </div>
 
@@ -107,10 +113,10 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
-          <ShieldCheck size={48} className="mx-auto text-slate-500 mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Inicia sesión para ver tus estadísticas</h2>
-          <p className="text-slate-400">Debes estar autenticado para acceder al panel de control.</p>
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-10 text-center shadow-sm">
+          <ShieldCheck size={48} className="mx-auto text-slate-400 mb-4" />
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Inicia sesión para ver tus estadísticas</h2>
+          <p className="text-slate-500">Debes estar autenticado para acceder al panel de control.</p>
         </div>
       )}
     </div>

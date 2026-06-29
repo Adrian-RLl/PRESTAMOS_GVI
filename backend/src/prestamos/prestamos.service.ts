@@ -88,7 +88,7 @@ export class PrestamosService {
       await this.mailerService.sendMail({
         to: resultados[0].usuario.correo,
         subject: `Acta de Entrega de Activos - ${resultados.length} equipo(s)`,
-        text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\n${resultados[0].fecha_devolucion ? `Recuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString()}.` : 'Recuerda que esta es una asignación permanente.'}\n\nSaludos,\nEquipo VGI.`,
+        text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\n${resultados[0].fecha_devolucion ? `Recuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}.` : 'Recuerda que esta es una asignación permanente.'}\n\nSaludos,\nEquipo VGI.`,
         attachments: [
           {
             filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}.pdf`,

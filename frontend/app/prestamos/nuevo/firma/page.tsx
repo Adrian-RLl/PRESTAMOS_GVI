@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, PenTool, CheckCircle } from 'lucide-react';
@@ -55,7 +56,7 @@ export default function FirmaPrestamo() {
     e.preventDefault();
     if (!prestamoData) return;
     if (sigCanvas.current?.isEmpty()) {
-      alert("Por favor, proporcione una firma digital.");
+      toast.error("Por favor, proporcione una firma digital.");
       return;
     }
 
@@ -78,7 +79,7 @@ export default function FirmaPrestamo() {
       router.push('/prestamos');
     } catch (error) {
       console.error(error);
-      alert('Error al registrar el préstamo');
+      toast.error('Error al registrar el préstamo');
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,7 @@ export default function FirmaPrestamo() {
             <h3 className="text-lg font-bold text-center mb-4 text-slate-800">ACTA DE ENTREGA DE ACTIVOS</h3>
             
             <p className="mb-4">
-              Conste por el presente documento que, con fecha <strong>{new Date(prestamoData.fecha_prestamo).toLocaleDateString()}</strong>, 
+              Conste por el presente documento que, con fecha <strong>{new Date(prestamoData.fecha_prestamo).toLocaleDateString('es-PE', { timeZone: 'UTC' })}</strong>, 
               se hace entrega formal de los siguientes activos propiedad de VGI a:
             </p>
 
@@ -152,7 +153,7 @@ export default function FirmaPrestamo() {
               <p className="text-sm font-medium">
                 Declaro haber recibido los activos listados en perfectas condiciones de funcionamiento. 
                 {prestamoData.fecha_devolucion 
-                  ? ` Me comprometo a cuidarlos y devolverlos a más tardar el ${new Date(prestamoData.fecha_devolucion).toLocaleDateString()}. `
+                  ? ` Me comprometo a cuidarlos y devolverlos a más tardar el ${new Date(prestamoData.fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}. `
                   : ` Me comprometo a cuidarlos mientras dure esta asignación permanente. `}
                 En caso de pérdida o daño por negligencia, asumo la responsabilidad correspondiente.
               </p>

@@ -12,6 +12,15 @@ export class ActivosService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createActivoDto: CreateActivoDto) {
+    if (!createActivoDto.tipo?.trim() || !createActivoDto.marca?.trim() || !createActivoDto.modelo?.trim() || !createActivoDto.serie?.trim()) {
+      throw new BadRequestException('Los campos tipo, marca, modelo y serie no pueden estar vacíos ni contener solo espacios.');
+    }
+
+    const existing = await this.findBySerie(createActivoDto.serie);
+    if (existing) {
+      throw new BadRequestException(`El número de serie/IMEI "${createActivoDto.serie}" ya se encuentra registrado.`);
+    }
+
     return this.prisma.activo.create({
       data: createActivoDto,
     });
@@ -96,6 +105,25 @@ export class ActivosService {
   }
 
   async update(id: number, updateActivoDto: UpdateActivoDto) {
+    if (updateActivoDto.tipo !== undefined && !updateActivoDto.tipo.trim()) {
+      throw new BadRequestException('El tipo no puede estar vacío.');
+    }
+    if (updateActivoDto.marca !== undefined && !updateActivoDto.marca.trim()) {
+      throw new BadRequestException('La marca no puede estar vacía.');
+    }
+    if (updateActivoDto.modelo !== undefined && !updateActivoDto.modelo.trim()) {
+      throw new BadRequestException('El modelo no puede estar vacío.');
+    }
+    if (updateActivoDto.serie !== undefined) {
+      if (!updateActivoDto.serie.trim()) {
+        throw new BadRequestException('La serie no puede estar vacía.');
+      }
+      const existing = await this.findBySerie(updateActivoDto.serie);
+      if (existing && existing.id !== id) {
+        throw new BadRequestException(`El número de serie/IMEI "${updateActivoDto.serie}" ya se encuentra registrado por otro activo.`);
+      }
+    }
+
     await this.findOne(id); // Verifica si existe
     return this.prisma.activo.update({
       where: { id },

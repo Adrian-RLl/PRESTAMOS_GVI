@@ -21,10 +21,10 @@ export class PdfService {
       const usuario = prestamos[0].usuario;
       const fechaPrestamo = new Date(
         prestamos[0].fecha_prestamo,
-      ).toLocaleDateString();
+      ).toLocaleDateString('es-PE', { timeZone: 'UTC' });
       const fechaDevolucion = prestamos[0].fecha_devolucion ? new Date(
         prestamos[0].fecha_devolucion,
-      ).toLocaleDateString() : 'Asignación Permanente';
+      ).toLocaleDateString('es-PE', { timeZone: 'UTC' }) : 'Asignación Permanente';
       const pageW = 495; // 595 - 50*2
 
       // ── Encabezado ──
@@ -236,10 +236,10 @@ export class PdfService {
       const usuario = prestamos[0].usuario;
       const fechaPrestamo = new Date(
         prestamos[0].fecha_prestamo,
-      ).toLocaleDateString();
+      ).toLocaleDateString('es-PE', { timeZone: 'UTC' });
       const fechaDevolucion = new Date(
         prestamos[0].fecha_devolucion || new Date(),
-      ).toLocaleDateString();
+      ).toLocaleDateString('es-PE', { timeZone: prestamos[0].fecha_devolucion ? 'UTC' : undefined });
       const pageW = 495;
 
       // ── Encabezado ──
@@ -273,7 +273,7 @@ export class PdfService {
       const rowH = 16;
 
       const infoData: [string, string][] = [
-        ['FECHA:', new Date().toLocaleDateString()],
+        ['FECHA:', new Date().toLocaleDateString('es-PE')],
         ['FECHA ENTREGA ORIGINAL:', fechaPrestamo],
         ['FECHA DEVOLUCIÓN:', fechaDevolucion],
         ['EMPRESA:', usuario.empresa?.nombre || '-'],

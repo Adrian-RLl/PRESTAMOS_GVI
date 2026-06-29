@@ -10,7 +10,7 @@ export class CargosService {
   }
 
   findAll() {
-    return this.prisma.cargo.findMany({ where: { estado: true } });
+    return this.prisma.cargo.findMany();
   }
 
   findOne(id: number) {

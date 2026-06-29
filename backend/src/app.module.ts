@@ -13,6 +13,7 @@ import { GerenciasModule } from './gerencias/gerencias.module';
 import { AreasModule } from './areas/areas.module';
 import { CargosModule } from './cargos/cargos.module';
 import { SedesModule } from './sedes/sedes.module';
+import { TiposActivosModule } from './tipos-activos/tipos-activos.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AreasModule,
     CargosModule,
     SedesModule,
+    TiposActivosModule,
     DashboardModule,
   ],
   controllers: [AppController],

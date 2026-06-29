@@ -13,6 +13,7 @@ const navItems = [
   { name: 'Áreas', href: '/mantenimiento/areas', icon: Layers },
   { name: 'Cargos', href: '/mantenimiento/cargos', icon: Briefcase },
   { name: 'Sedes', href: '/mantenimiento/sedes', icon: MapPin },
+  { name: 'Tipos de Activo', href: '/mantenimiento/tipos-activos', icon: Layers },
 ];
 
 export default function MantenimientoLayout({ children }: { children: React.ReactNode }) {

@@ -250,19 +250,19 @@ export default function NuevaEntrega() {
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Nombre</label>
               <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium">
-                {user?.nombre || 'Cargando...'}
+                {usuarios.find(u => u.id === user?.id)?.nombre || user?.nombre || 'Cargando...'}
               </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Área</label>
               <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium">
-                {user?.area?.nombre || 'Cargando...'}
+                {usuarios.find(u => u.id === user?.id)?.area?.nombre || '-'}
               </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">Cargo</label>
               <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium">
-                {user?.cargo?.nombre || 'Cargando...'}
+                {usuarios.find(u => u.id === user?.id)?.cargo?.nombre || '-'}
               </div>
             </div>
           </div>
@@ -290,9 +290,10 @@ export default function NuevaEntrega() {
                 <input 
                   type="text" 
                   value={dniBusqueda} 
-                  onChange={(e) => setDniBusqueda(e.target.value)}
+                  onChange={(e) => setDniBusqueda(e.target.value.replace(/\D/g, ''))}
                   onKeyDown={(e) => e.key === 'Enter' && buscarDni()}
                   placeholder="Ej. 70123456"
+                  maxLength={8} pattern="\d{8}" title="El DNI debe tener 8 dígitos numéricos"
                   className="flex-1 px-4 py-2.5 outline-none text-sm border-y border-l border-slate-300"
                 />
                 <button onClick={buscarDni} className="bg-blue-600 text-white px-4 py-2.5 hover:bg-blue-700 transition-colors border border-blue-600">
@@ -336,11 +337,32 @@ export default function NuevaEntrega() {
               
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
-                  <Briefcase size={14} className="mr-1" /> Gerencia / Área / Cargo
+                  <Briefcase size={14} className="mr-1" /> Gerencia
                 </label>
-                <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 truncate">
-                  {gerencias.find(g => g.id.toString() === gerenciaId)?.nombre || '-'} / {areas.find(a => a.id.toString() === areaId)?.nombre || '-'} / {cargos.find(c => c.id.toString() === cargoId)?.nombre || '-'}
-                </div>
+                <select value={gerenciaId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
+                  <option value="">-</option>
+                  {gerencias.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
+                  <Briefcase size={14} className="mr-1" /> Área
+                </label>
+                <select value={areaId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
+                  <option value="">-</option>
+                  {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
+                  <Briefcase size={14} className="mr-1" /> Cargo
+                </label>
+                <select value={cargoId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
+                  <option value="">-</option>
+                  {cargos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
               </div>
             </div>
           </div>

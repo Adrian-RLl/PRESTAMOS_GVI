@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Save, X, RotateCcw, PenTool, CheckCircle, AlertCircle, User, Box, ChevronRight } from 'lucide-react';
@@ -113,7 +114,7 @@ export default function NuevaDevolucion() {
       return;
     }
     if (sigCanvas.current?.isEmpty()) {
-      alert("Por favor, proporcione una firma digital de conformidad.");
+      toast.error("Por favor, proporcione una firma digital de conformidad.");
       return;
     }
 
@@ -127,7 +128,7 @@ export default function NuevaDevolucion() {
         observaciones_activos: observaciones,
         devuelto_por_tercero: devueltoPorTercero.trim() || undefined
       });
-      alert('Devolución registrada exitosamente.');
+      toast.success('Devolución registrada exitosamente.');
       router.push('/devoluciones');
     } catch (err: any) {
       console.error(err);
@@ -181,9 +182,10 @@ export default function NuevaDevolucion() {
                 <input 
                   type="text" 
                   value={dni} 
-                  onChange={(e) => setDni(e.target.value)}
+                  onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
                   onKeyDown={(e) => e.key === 'Enter' && buscarUsuario()}
                   placeholder="Ej. 70123456"
+                  maxLength={8} pattern="\d{8}" title="El DNI debe tener 8 dígitos numéricos"
                   className="flex-1 px-4 py-2.5 outline-none text-sm border-y border-l border-slate-300"
                 />
                 <button 

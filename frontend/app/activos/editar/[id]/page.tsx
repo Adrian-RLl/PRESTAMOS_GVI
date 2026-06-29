@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -21,6 +22,7 @@ export default function EditarActivo() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [empresas, setEmpresas] = useState([]);
+  const [tiposActivos, setTiposActivos] = useState([]);
   const [formData, setFormData] = useState({
     tipo: '',
     marca: '',
@@ -39,12 +41,14 @@ export default function EditarActivo() {
     const fetchData = async () => {
       if (!id) return;
       try {
-        const [empresasRes, activoRes] = await Promise.all([
+        const [empresasRes, activoRes, tiposRes] = await Promise.all([
           api.get('/empresas'),
-          api.get(`/activos/${id}`)
+          api.get(`/activos/${id}`),
+          api.get('/tipos-activos')
         ]);
         
-        setEmpresas(empresasRes.data);
+        setEmpresas(empresasRes.data.filter((e: any) => e.estado));
+        setTiposActivos(tiposRes.data.filter((t: any) => t.estado));
         
         const activo = activoRes.data;
         setFormData({
@@ -62,7 +66,7 @@ export default function EditarActivo() {
         });
       } catch (err) {
         console.error('Error cargando datos:', err);
-        alert('Hubo un error al cargar el activo.');
+        toast.error('Hubo un error al cargar el activo.');
       } finally {
         setFetching(false);
       }
@@ -83,7 +87,7 @@ export default function EditarActivo() {
       router.push('/activos');
     } catch (error) {
       console.error('Error al actualizar activo:', error);
-      alert('Hubo un error al actualizar el activo. Verifica tus permisos y los datos.');
+      toast.error('Hubo un error al actualizar el activo. Verifica tus permisos y los datos.');
     } finally {
       setLoading(false);
     }
@@ -118,14 +122,9 @@ export default function EditarActivo() {
             <label className="text-sm font-semibold text-slate-700">Tipo de Activo *</label>
             <select name="tipo" required value={formData.tipo} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
               <option value="">- Seleccione -</option>
-              <option value="Laptop">Laptop</option>
-              <option value="Monitor">Monitor</option>
-              <option value="Celular">Celular</option>
-              <option value="Tablet">Tablet</option>
-              <option value="Periferico">Periférico</option>
-              <option value="Vehículo">Vehículo</option>
-              <option value="Mobiliario">Mobiliario</option>
-              <option value="Otro">Otro</option>
+              {tiposActivos.map((tipo: any) => (
+                <option key={tipo.id} value={tipo.nombre}>{tipo.nombre}</option>
+              ))}
             </select>
           </div>
 

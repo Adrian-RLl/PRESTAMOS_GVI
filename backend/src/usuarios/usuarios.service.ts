@@ -55,10 +55,37 @@ export class UsuariosService {
   }
 
   async create(data: any) {
+    if (!data.nombre || data.nombre.trim() === '') {
+      throw new BadRequestException('El nombre es obligatorio y no puede estar vacío.');
+    }
+    
+    if (data.dni && !/^\d{8}$/.test(String(data.dni))) {
+      throw new BadRequestException('El DNI debe tener exactamente 8 números.');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (data.correo && !emailRegex.test(data.correo)) {
+      throw new BadRequestException('El correo corporativo no tiene un formato válido.');
+    }
+    if (data.correo_personal && !emailRegex.test(data.correo_personal)) {
+      throw new BadRequestException('El correo personal no tiene un formato válido.');
+    }
+
+    const phoneRegex = /^\d{9}$/;
+    if (data.telefono_personal && !phoneRegex.test(data.telefono_personal)) {
+      throw new BadRequestException('El teléfono personal debe tener 9 dígitos numéricos.');
+    }
+    if (data.celular_personal && !phoneRegex.test(data.celular_personal)) {
+      throw new BadRequestException('El celular personal debe tener 9 dígitos numéricos.');
+    }
+    if (data.celular_empresa && !phoneRegex.test(data.celular_empresa)) {
+      throw new BadRequestException('El celular empresa debe tener 9 dígitos numéricos.');
+    }
+
     // Verificar si el correo ya existe
     const existing = await this.findByEmail(data.correo);
     if (existing) {
-      throw new BadRequestException('El correo ya está en uso');
+      throw new BadRequestException('El correo ya está en uso por otro usuario.');
     }
 
     // Verificar si el DNI ya existe (si se proporcionó)
@@ -189,6 +216,33 @@ export class UsuariosService {
   }
 
   async update(id: number, data: any) {
+    if (data.nombre !== undefined && data.nombre.trim() === '') {
+      throw new BadRequestException('El nombre no puede estar vacío.');
+    }
+    
+    if (data.dni && !/^\d{8}$/.test(String(data.dni))) {
+      throw new BadRequestException('El DNI debe tener exactamente 8 números.');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (data.correo && !emailRegex.test(data.correo)) {
+      throw new BadRequestException('El correo corporativo no tiene un formato válido.');
+    }
+    if (data.correo_personal && !emailRegex.test(data.correo_personal)) {
+      throw new BadRequestException('El correo personal no tiene un formato válido.');
+    }
+
+    const phoneRegex = /^\d{9}$/;
+    if (data.telefono_personal && !phoneRegex.test(data.telefono_personal)) {
+      throw new BadRequestException('El teléfono personal debe tener 9 dígitos numéricos.');
+    }
+    if (data.celular_personal && !phoneRegex.test(data.celular_personal)) {
+      throw new BadRequestException('El celular personal debe tener 9 dígitos numéricos.');
+    }
+    if (data.celular_empresa && !phoneRegex.test(data.celular_empresa)) {
+      throw new BadRequestException('El celular empresa debe tener 9 dígitos numéricos.');
+    }
+
     // Verificar si el correo ya existe en otro usuario
     if (data.correo) {
       const existing = await this.findByEmail(data.correo);

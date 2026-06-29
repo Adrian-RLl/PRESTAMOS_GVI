@@ -41,6 +41,7 @@ export default function UsuariosCatalog() {
     nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
     empresa_id: '', area_id: '', cargo_id: '', gerencia_id: '', sede_id: '' 
   });
+  const [changePassword, setChangePassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function UsuariosCatalog() {
   );
 
   const openModal = (item?: Usuario) => {
+    setChangePassword(false);
     if (item) {
       setEditingItem(item);
       setFormData({ 
@@ -275,14 +277,6 @@ export default function UsuariosCatalog() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña {editingItem && <span className="text-xs font-normal text-slate-400">(Dejar en blanco para no cambiar)</span>}</label>
-                    <input 
-                      type="password" value={formData.contraseña} onChange={(e) => setFormData({...formData, contraseña: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required={!editingItem}
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Rol de Acceso <span className="text-red-500">*</span></label>
                     <select 
                       value={formData.rol_id} onChange={(e) => setFormData({...formData, rol_id: Number(e.target.value)})}
@@ -291,7 +285,45 @@ export default function UsuariosCatalog() {
                       {roles.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                     </select>
                   </div>
+                  {!editingItem && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña <span className="text-red-500">*</span></label>
+                      <input 
+                        type="password" value={formData.contraseña} onChange={(e) => setFormData({...formData, contraseña: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {editingItem && (
+                  <div className="mt-4 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <div className="flex items-center space-x-3 cursor-pointer" onClick={() => {
+                        const newVal = !changePassword;
+                        setChangePassword(newVal);
+                        if (!newVal) setFormData({...formData, contraseña: ''});
+                      }}>
+                      <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${changePassword ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
+                        {changePassword && <Check size={14} className="text-white" />}
+                      </div>
+                      <label className="text-sm font-semibold text-slate-700 cursor-pointer select-none">Actualizar Contraseña</label>
+                    </div>
+                    {changePassword && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nueva Contraseña <span className="text-red-500">*</span></label>
+                        <input 
+                          type="password" 
+                          value={formData.contraseña} 
+                          onChange={(e) => setFormData({...formData, contraseña: e.target.value})}
+                          placeholder="Ingresa la nueva contraseña"
+                          className="w-full md:w-1/2 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Sección Datos Organizacionales */}

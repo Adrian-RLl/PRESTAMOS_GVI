@@ -10,7 +10,7 @@ export class AreasService {
   }
 
   findAll() {
-    return this.prisma.area.findMany({ where: { estado: true } });
+    return this.prisma.area.findMany();
   }
 
   findOne(id: number) {

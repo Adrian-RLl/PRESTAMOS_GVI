@@ -10,7 +10,7 @@ export class SedesService {
   }
 
   findAll() {
-    return this.prisma.sede.findMany({ where: { estado: true } });
+    return this.prisma.sede.findMany();
   }
 
   findOne(id: number) {

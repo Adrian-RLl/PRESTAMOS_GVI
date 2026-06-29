@@ -1,8 +1,9 @@
 "use client";
 
+import { toast } from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Eye, Search, AlertCircle } from 'lucide-react';
+import { PlusCircle, Eye, Search, AlertCircle, ArrowUpDown } from 'lucide-react';
 import { api, Prestamo } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,10 +13,20 @@ export default function DevolucionesPage() {
 
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [loading, setLoading] = useState(true);
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterArea, setFilterArea] = useState('Todas');
-  const [filterSede, setFilterSede] = useState('Todas');
-  const [filterDate, setFilterDate] = useState('');
+
+  // Column Filters
+  const [filters, setFilters] = useState({
+    activo: '',
+    usuario: '',
+    fechas: '',
+    estado: 'Todos',
+    analista: ''
+  });
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const fetchPrestamos = async () => {
     try {
@@ -36,7 +47,7 @@ export default function DevolucionesPage() {
       window.open(fileURL, '_blank');
     } catch (err) {
       console.error("Error al descargar PDF de devolución", err);
-      alert("No se pudo descargar el acta de devolución.");
+      toast.error("No se pudo descargar el acta de devolución.");
     }
   };
 
@@ -46,27 +57,23 @@ export default function DevolucionesPage() {
     });
   }, []);
 
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const devoluciones = prestamos.filter(p => p.estado === 'Devuelto');
 
-  const uniqueAreas = Array.from(new Set(devoluciones.map(p => (p.usuario as any)?.area?.nombre).filter(Boolean))) as string[];
-  const uniqueSedes = Array.from(new Set(devoluciones.map(p => (p.usuario as any)?.sede?.nombre).filter(Boolean))) as string[];
-
   const filteredDevoluciones = devoluciones.filter(d => {
-    // Filtro Área
-    const area = (d.usuario as any)?.area?.nombre;
-    if (filterArea !== 'Todas' && area !== filterArea) return false;
-    
-    // Filtro Sede
-    const sede = (d.usuario as any)?.sede?.nombre;
-    if (filterSede !== 'Todas' && sede !== filterSede) return false;
-    
-    // Filtro Fecha (Fecha de Devolución)
-    if (filterDate && d.fecha_devolucion) {
-      const dDate = new Date(d.fecha_devolucion).toISOString().split('T')[0];
-      if (dDate !== filterDate) return false;
-    }
-    
-    // Filtro Búsqueda Texto
+    // General Search
+    let searchMatch = true;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchText = [
@@ -75,13 +82,61 @@ export default function DevolucionesPage() {
         d.activo?.serie,
         d.activo?.marca,
         d.activo?.tipo,
-        d.usuario_receptor?.nombre // Analista que recibió la devolución
+        d.usuario_receptor?.nombre
       ].join(' ').toLowerCase();
-      
-      if (!matchText.includes(term)) return false;
+      searchMatch = matchText.includes(term);
+    }
+
+    if (!searchMatch) return false;
+
+    // Column Filters
+    if (filters.estado !== 'Todos' && d.estado !== filters.estado) return false;
+    
+    const activoText = [d.activo?.tipo, d.activo?.marca, d.activo?.serie].join(' ').toLowerCase();
+    if (filters.activo && !activoText.includes(filters.activo.toLowerCase())) return false;
+
+    const usuarioText = [d.usuario?.nombre, (d.usuario as any)?.area?.nombre, (d.usuario as any)?.sede?.nombre].join(' ').toLowerCase();
+    if (filters.usuario && !usuarioText.includes(filters.usuario.toLowerCase())) return false;
+
+    const analistaText = (d.usuario_receptor?.nombre || '').toLowerCase();
+    if (filters.analista && !analistaText.includes(filters.analista.toLowerCase())) return false;
+
+    if (filters.fechas) {
+      const pDate1 = new Date(d.fecha_prestamo).toLocaleDateString('es-PE', { timeZone: 'UTC' });
+      const pDate2 = d.fecha_devolucion ? new Date(d.fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' }) : '';
+      const datesText = `${pDate1} ${pDate2}`;
+      if (!datesText.includes(filters.fechas)) return false;
     }
 
     return true;
+  });
+
+  const sortedDevoluciones = [...filteredDevoluciones].sort((a, b) => {
+    if (!sortConfig) return 0;
+    
+    let aValue: any = '';
+    let bValue: any = '';
+
+    if (sortConfig.key === 'activo') {
+      aValue = `${a.activo?.tipo} ${a.activo?.marca} ${a.activo?.serie}`;
+      bValue = `${b.activo?.tipo} ${b.activo?.marca} ${b.activo?.serie}`;
+    } else if (sortConfig.key === 'usuario') {
+      aValue = `${a.usuario?.nombre} ${(a.usuario as any)?.area?.nombre}`;
+      bValue = `${b.usuario?.nombre} ${(b.usuario as any)?.area?.nombre}`;
+    } else if (sortConfig.key === 'fechas') {
+      aValue = new Date(a.fecha_devolucion || 0).getTime();
+      bValue = new Date(b.fecha_devolucion || 0).getTime();
+    } else if (sortConfig.key === 'estado') {
+      aValue = a.estado;
+      bValue = b.estado;
+    } else if (sortConfig.key === 'analista') {
+      aValue = a.usuario_receptor?.nombre || '';
+      bValue = b.usuario_receptor?.nombre || '';
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
 
   return (
@@ -102,49 +157,15 @@ export default function DevolucionesPage() {
         )}
       </div>
 
-      {/* Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Buscar</label>
-          <input 
-            type="text"
-            placeholder="Usuario, serie, analista..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Área</label>
-          <select 
-            value={filterArea}
-            onChange={(e) => setFilterArea(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 bg-white"
-          >
-            <option value="Todas">Todas las áreas</option>
-            {uniqueAreas.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Sede</label>
-          <select 
-            value={filterSede}
-            onChange={(e) => setFilterSede(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 bg-white"
-          >
-            <option value="Todas">Todas las sedes</option>
-            {uniqueSedes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Fecha Devolución</label>
-          <input 
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-500 bg-white"
-          />
-        </div>
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+        <input 
+          type="text" 
+          placeholder="Búsqueda general..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+        />
       </div>
 
       {loading ? (
@@ -152,42 +173,87 @@ export default function DevolucionesPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm">
-                <th className="p-4 font-semibold">Activo</th>
-                <th className="p-4 font-semibold">Usuario y Área</th>
-                <th className="p-4 font-semibold">Fechas</th>
-                <th className="p-4 font-semibold">Estado</th>
-                <th className="p-4 font-semibold">Analista (Receptor)</th>
-                <th className="p-4 font-semibold text-right">Constancia</th>
+              <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 text-sm">
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('activo')}>
+                  <div className="flex items-center gap-1">Activo <ArrowUpDown size={14} className="text-slate-400" /></div>
+                </th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('usuario')}>
+                  <div className="flex items-center gap-1">Usuario y Área <ArrowUpDown size={14} className="text-slate-400" /></div>
+                </th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('fechas')}>
+                  <div className="flex items-center gap-1">Fechas <ArrowUpDown size={14} className="text-slate-400" /></div>
+                </th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('estado')}>
+                  <div className="flex items-center gap-1">Estado <ArrowUpDown size={14} className="text-slate-400" /></div>
+                </th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('analista')}>
+                  <div className="flex items-center gap-1">Analista (Receptor) <ArrowUpDown size={14} className="text-slate-400" /></div>
+                </th>
+                <th className="p-3 font-semibold text-right">Constancia</th>
+              </tr>
+              {/* Filtros Row */}
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="p-2">
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                    <input type="text" placeholder="Filtrar activo..." value={filters.activo} onChange={(e) => handleFilterChange('activo', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal shadow-inner" />
+                  </div>
+                </th>
+                <th className="p-2">
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                    <input type="text" placeholder="Filtrar usuario..." value={filters.usuario} onChange={(e) => handleFilterChange('usuario', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal shadow-inner" />
+                  </div>
+                </th>
+                <th className="p-2">
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                    <input type="text" placeholder="Filtrar fecha..." value={filters.fechas} onChange={(e) => handleFilterChange('fechas', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal shadow-inner" />
+                  </div>
+                </th>
+                <th className="p-2">
+                  <select value={filters.estado} onChange={(e) => handleFilterChange('estado', e.target.value)} className="w-full text-xs py-1.5 px-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal bg-white shadow-inner">
+                    <option value="Todos">Todos</option>
+                    <option value="Devuelto">Devueltos</option>
+                  </select>
+                </th>
+                <th className="p-2">
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                    <input type="text" placeholder="Filtrar analista..." value={filters.analista} onChange={(e) => handleFilterChange('analista', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal shadow-inner" />
+                  </div>
+                </th>
+                <th className="p-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredDevoluciones.length === 0 ? (
+              {sortedDevoluciones.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
-                    No hay devoluciones registradas con el filtro actual.
+                  <td colSpan={6} className="p-12 text-center text-slate-500">
+                    <Search size={32} className="mx-auto text-slate-300 mb-3" />
+                    No hay devoluciones registradas con los filtros actuales.
                   </td>
                 </tr>
               ) : (
-                filteredDevoluciones.map((prestamo) => (
-                  <tr key={prestamo.id} className="hover:bg-slate-50 transition-colors">
+                sortedDevoluciones.map((prestamo) => (
+                  <tr key={prestamo.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-4">
-                      <div className="font-medium text-slate-800">{prestamo.activo?.tipo} - {prestamo.activo?.marca}</div>
-                      <div className="text-sm text-slate-500">Serie: {prestamo.activo?.serie}</div>
+                      <div className="font-bold text-slate-800">{prestamo.activo?.tipo} - {prestamo.activo?.marca}</div>
+                      <div className="text-sm text-slate-500 font-medium">Serie: {prestamo.activo?.serie}</div>
                     </td>
                     <td className="p-4">
                       <div className="font-medium text-slate-700">{prestamo.usuario?.nombre}</div>
                       <div className="text-xs text-slate-500">{(prestamo.usuario as any)?.area?.nombre} | {(prestamo.usuario as any)?.sede?.nombre}</div>
                     </td>
                     <td className="p-4">
-                      <div className="text-slate-800 text-sm">Entregado: {new Date(prestamo.fecha_prestamo).toLocaleDateString()}</div>
-                      <div className="text-emerald-600 text-sm font-medium">Devuelto: {new Date(prestamo.fecha_devolucion!).toLocaleDateString()}</div>
+                      <div className="text-slate-800 text-sm">Entregado: {new Date(prestamo.fecha_prestamo).toLocaleDateString('es-PE', { timeZone: 'UTC' })}</div>
+                      <div className="text-emerald-600 text-sm font-medium">Devuelto: {new Date(prestamo.fecha_devolucion!).toLocaleDateString('es-PE', { timeZone: 'UTC' })}</div>
                     </td>
                     <td className="p-4">
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                      <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
                         {prestamo.estado}
                       </span>
                     </td>
@@ -215,4 +281,3 @@ export default function DevolucionesPage() {
     </div>
   );
 }
-

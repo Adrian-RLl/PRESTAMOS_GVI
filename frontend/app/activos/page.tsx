@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, Fragment } from 'react';
-import { PlusCircle, Edit, Trash2, FileSpreadsheet } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useEffect, useState, Fragment } from 'react';
+import { PlusCircle, Edit, Trash2, Download, ArrowUpDown, Search } from 'lucide-react';
 import { api, Activo } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
@@ -14,25 +15,24 @@ export default function ActivosPage() {
 
   const [activos, setActivos] = useState<Activo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterEstado, setFilterEstado] = useState('Todos');
-  const [filterTipo, setFilterTipo] = useState('Todos');
-  const [filterOrden, setFilterOrden] = useState('');
-  const [isOrdenDropdownOpen, setIsOrdenDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOrdenDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-  // Import State
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
+  // General Search
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Column Filters
+  const [filters, setFilters] = useState({
+    serie: '',
+    tipo: '',
+    marca: '',
+    modelo: '',
+    estado: 'Todos',
+    ubicacion: '',
+    orden: '',
+    asignado: '',
+  });
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,7 +40,7 @@ export default function ActivosPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterEstado, filterTipo, filterOrden]);
+  }, [filters, searchTerm]);
 
   const fetchActivos = async () => {
     try {
@@ -64,119 +64,126 @@ export default function ActivosPage() {
         fetchActivos();
       } catch (error) {
         console.error("Error deleting activo", error);
-        alert("No se pudo eliminar el activo.");
+        toast.error("No se pudo eliminar el activo.");
       }
     }
   };
 
+  const handleExportExcel = () => {
+    const data = sortedActivos.map(activo => ({
+      'N° Serie': activo.serie,
+      'Tipo': activo.tipo,
+      'Marca': activo.marca,
+      'Modelo': activo.modelo,
+      'Estado': activo.estado,
+      'Ubicación': activo.ubicacion,
+      'Orden de Compra': activo.orden_compra || '-',
+      'Asignado A': activo.prestamos?.find(p => p.estado === 'Activo')?.usuario?.nombre || 'No asignado',
+      'Fecha Creación': activo.fecha_creacion ? new Date(activo.fecha_creacion).toLocaleDateString('es-PE', { timeZone: 'UTC' }) : '-',
+      'Fecha Asignación': activo.estado === 'Asignado' && activo.prestamos?.find(p => p.estado === 'Activo')?.fecha_prestamo 
+          ? new Date(activo.prestamos.find(p => p.estado === 'Activo')!.fecha_prestamo).toLocaleDateString('es-PE', { timeZone: 'UTC' }) 
+          : '-'
+    }));
 
-
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-        
-        const batch = data.map((row: any) => ({
-          tipo: row.tipo?.toString() || row.Tipo?.toString() || row["Tipo de Activo"]?.toString() || row["Tipo de Activo (Ej. Laptop, Celular)"]?.toString() || 'Otro',
-          marca: row.marca?.toString() || row.Marca?.toString() || 'Genérica',
-          modelo: row.modelo?.toString() || row.Modelo?.toString() || 'S/M',
-          serie: row.serie?.toString() || row.Serie?.toString() || row["Número de Serie"]?.toString() || row["Número de Serie (Debe ser único)"]?.toString() || 'S/N',
-          condicion: row.condicion?.toString() || row.Condición?.toString() || row["Condición"]?.toString() || row["Condición (Nuevo, Usado, Malogrado)"]?.toString() || 'Nuevo',
-          estado: row.estado?.toString() || row.Estado?.toString() || row["Estado"]?.toString() || row["Estado (Disponible, Asignado)"]?.toString() || 'Disponible',
-          vigencia: row.vigencia?.toString() || row.Vigencia?.toString() || row["Vigencia"]?.toString() || row["Vigencia (Ej. 1 año)"]?.toString() || '',
-          ubicacion: row.ubicacion?.toString() || row.Ubicacion?.toString() || row["Ubicación"]?.toString() || 'Principal',
-          orden_compra: row.orden_compra?.toString() || row.orden?.toString() || row["Orden de Compra"]?.toString() || '',
-          observaciones: row.observaciones?.toString() || row.Observaciones?.toString() || '',
-          empresa: row.empresa?.toString() || row.Empresa?.toString() || row["Empresa"]?.toString() || row["ID de Empresa"]?.toString() || ''
-        }));
-
-        await api.post('/activos/lote', batch);
-        alert(`Se importaron los activos correctamente.`);
-        fetchActivos();
-      } catch (error: any) {
-        console.error("Error importing excel", error);
-        alert(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
-      } finally {
-        setImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsBinaryString(file);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Activos");
+    XLSX.writeFile(wb, "Activos_Exportados.xlsx");
+    toast.success("Datos exportados a Excel correctamente.");
   };
 
-  const tiposUnicos = Array.from(new Set(activos.map(a => a.tipo))).filter(Boolean) as string[];
-  const ordenesUnicas = Array.from(new Set(activos.map(a => a.orden_compra))).filter(Boolean) as string[];
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const filteredActivos = activos.filter((activo) => {
-    // Filtro por Estado
-    const matchEstado = filterEstado === 'Todos' || activo.estado === filterEstado;
+    const pActivo = activo.prestamos?.find(p => p.estado === 'Activo');
+    const assignedName = pActivo?.usuario?.nombre || 'No asignado';
     
-    // Filtro por Tipo
-    const matchTipo = filterTipo === 'Todos' || activo.tipo === filterTipo;
+    // General Search Match
+    let searchMatch = true;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchText = [
+        activo.serie,
+        activo.tipo,
+        activo.marca,
+        activo.modelo,
+        activo.ubicacion,
+        activo.orden_compra,
+        assignedName
+      ].join(' ').toLowerCase();
+      searchMatch = matchText.includes(term);
+    }
 
-    // Filtro por Orden de Compra
-    const matchOrden = filterOrden === '' || (activo.orden_compra || '').toLowerCase().includes(filterOrden.toLowerCase());
+    return searchMatch && (
+      (filters.serie === '' || (activo.serie || '').toLowerCase().includes(filters.serie.toLowerCase())) &&
+      (filters.tipo === '' || (activo.tipo || '').toLowerCase().includes(filters.tipo.toLowerCase())) &&
+      (filters.marca === '' || (activo.marca || '').toLowerCase().includes(filters.marca.toLowerCase())) &&
+      (filters.modelo === '' || (activo.modelo || '').toLowerCase().includes(filters.modelo.toLowerCase())) &&
+      (filters.estado === 'Todos' || activo.estado === filters.estado) &&
+      (filters.ubicacion === '' || (activo.ubicacion || '').toLowerCase().includes(filters.ubicacion.toLowerCase())) &&
+      (filters.orden === '' || (activo.orden_compra || '').toLowerCase().includes(filters.orden.toLowerCase())) &&
+      (filters.asignado === '' || assignedName.toLowerCase().includes(filters.asignado.toLowerCase()))
+    );
+  });
 
-    // Buscador general
-    const prestamoActivo = activo.prestamos?.find(p => p.estado === 'Activo');
-    const nombreUsuario = prestamoActivo?.usuario?.nombre || '';
+  const sortedActivos = [...filteredActivos].sort((a, b) => {
+    if (!sortConfig) return 0;
     
-    const term = searchTerm.toLowerCase();
-    const matchSearch = term === '' || 
-      (activo.serie || '').toLowerCase().includes(term) ||
-      (activo.tipo || '').toLowerCase().includes(term) ||
-      (activo.marca || '').toLowerCase().includes(term) ||
-      (activo.modelo || '').toLowerCase().includes(term) ||
-      (activo.ubicacion || '').toLowerCase().includes(term) ||
-      (activo.orden_compra || '').toLowerCase().includes(term) ||
-      nombreUsuario.toLowerCase().includes(term);
+    let aValue: any = a[sortConfig.key as keyof Activo] || '';
+    let bValue: any = b[sortConfig.key as keyof Activo] || '';
 
-    return matchEstado && matchTipo && matchOrden && matchSearch;
+    if (sortConfig.key === 'asignado') {
+      aValue = a.prestamos?.find(p => p.estado === 'Activo')?.usuario?.nombre || 'No asignado';
+      bValue = b.prestamos?.find(p => p.estado === 'Activo')?.usuario?.nombre || 'No asignado';
+    } else if (sortConfig.key === 'fecha_creacion') {
+      aValue = new Date(a.fecha_creacion || 0).getTime();
+      bValue = new Date(b.fecha_creacion || 0).getTime();
+    } else if (sortConfig.key === 'fecha_asignacion') {
+      aValue = a.estado === 'Asignado' && a.prestamos?.find(p => p.estado === 'Activo')?.fecha_prestamo ? new Date(a.prestamos.find(p => p.estado === 'Activo')!.fecha_prestamo).getTime() : 0;
+      bValue = b.estado === 'Asignado' && b.prestamos?.find(p => p.estado === 'Activo')?.fecha_prestamo ? new Date(b.prestamos.find(p => p.estado === 'Activo')!.fecha_prestamo).getTime() : 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
 
   // Pagination calculations
-  const totalItems = filteredActivos.length;
+  const totalItems = sortedActivos.length;
   const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
   const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
   const endIndex = itemsPerPage === -1 ? totalItems : Math.min(startIndex + itemsPerPage, totalItems);
 
   const paginatedActivos = itemsPerPage === -1
-    ? filteredActivos
-    : filteredActivos.slice(startIndex, endIndex);
+    ? sortedActivos
+    : sortedActivos.slice(startIndex, endIndex);
 
   return (
     <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-8">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Activos</h1>
           <p className="text-slate-500 mt-1">Gestiona el inventario de la empresa</p>
         </div>
-        {canEdit && (
-          <div className="flex flex-wrap gap-2.5 sm:gap-3">
-            <input 
-              type="file" 
-              accept=".xlsx, .xls, .csv" 
-              ref={fileInputRef} 
-              onChange={handleImportExcel} 
-              className="hidden" 
-            />
-            <button 
-              onClick={() => fileInputRef.current?.click()} 
-              disabled={importing}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors disabled:opacity-70"
-            >
-              {importing ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <FileSpreadsheet size={20} />}
-              {importing ? 'Importando...' : 'Importar Excel'}
-            </button>
+        <div className="flex flex-wrap gap-2.5 sm:gap-3">
+          <button 
+            onClick={handleExportExcel} 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
+          >
+            <Download size={20} />
+            Exportar Data
+          </button>
+          {canEdit && (
             <Link 
               href="/activos/nuevo"
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
@@ -184,8 +191,19 @@ export default function ActivosPage() {
               <PlusCircle size={20} />
               Nuevo Activo
             </Link>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
+
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+        <input 
+          type="text" 
+          placeholder="Búsqueda general..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+        />
       </div>
 
       {loading ? (
@@ -194,222 +212,232 @@ export default function ActivosPage() {
         </div>
       ) : (
         <>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="w-full">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Buscador General</label>
-              <input 
-                type="text" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            
-            <div className="w-full">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar Estado</label>
-              <select 
-                value={filterEstado}
-                onChange={(e) => setFilterEstado(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="Todos">Todos los estados</option>
-                <option value="Disponible">Disponible</option>
-                <option value="Asignado">Asignado</option>
-                <option value="Mantenimiento">Mantenimiento</option>
-                <option value="Baja">De Baja</option>
-              </select>
-            </div>
-
-            <div className="w-full">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar Tipo</label>
-              <select 
-                value={filterTipo}
-                onChange={(e) => setFilterTipo(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="Todos">Todos los tipos</option>
-                {tiposUnicos.map(tipo => (
-                  <option key={tipo} value={tipo}>{tipo}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="w-full relative" ref={dropdownRef}>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar Orden de Compra</label>
-              <input 
-                type="text"
-                value={filterOrden}
-                onChange={(e) => {
-                  setFilterOrden(e.target.value);
-                  setIsOrdenDropdownOpen(true);
-                }}
-                onFocus={() => setIsOrdenDropdownOpen(true)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              {isOrdenDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-60 overflow-y-auto z-50 overflow-hidden">
-                  <div 
-                    className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-slate-500 text-sm border-b border-slate-100 italic"
-                    onClick={() => { setFilterOrden(''); setIsOrdenDropdownOpen(false); }}
-                  >
-                    Borrar selección
-                  </div>
-                  {ordenesUnicas
-                    .filter(o => o.toLowerCase().includes(filterOrden.toLowerCase()))
-                    .map(orden => (
-                    <div 
-                      key={orden} 
-                      className="px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 cursor-pointer text-slate-700 font-medium transition-colors"
-                      onClick={() => { setFilterOrden(orden); setIsOrdenDropdownOpen(false); }}
-                    >
-                      {orden}
-                    </div>
-                  ))}
-                  {ordenesUnicas.filter(o => o.toLowerCase().includes(filterOrden.toLowerCase())).length === 0 && (
-                    <div className="px-4 py-3 text-slate-400 text-sm text-center">
-                      No hay coincidencias
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
             <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm">
-                <th className="p-4 font-semibold">N° Serie</th>
-                <th className="p-4 font-semibold">Tipo / Marca</th>
-                <th className="p-4 font-semibold">Modelo</th>
-                <th className="p-4 font-semibold">Estado</th>
-                <th className="p-4 font-semibold">Ubicación</th>
-                <th className="p-4 font-semibold">Orden de Compra</th>
-                <th className="p-4 font-semibold">Asignado A</th>
-                {canEdit && <th className="p-4 font-semibold text-right">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredActivos.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
-                    No se encontraron activos.
-                  </td>
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 text-sm">
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('serie')}>
+                    <div className="flex items-center gap-1">N° Serie <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('tipo')}>
+                    <div className="flex items-center gap-1">Tipo <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('marca')}>
+                    <div className="flex items-center gap-1">Marca <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('modelo')}>
+                    <div className="flex items-center gap-1">Modelo <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('estado')}>
+                    <div className="flex items-center gap-1">Estado <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('ubicacion')}>
+                    <div className="flex items-center gap-1">Ubicación <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('orden_compra')}>
+                    <div className="flex items-center gap-1">Orden de Compra <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('asignado')}>
+                    <div className="flex items-center gap-1">Asignado A <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('fecha_creacion')}>
+                    <div className="flex items-center gap-1">F. Creación <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  <th className="p-3 font-semibold cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('fecha_asignacion')}>
+                    <div className="flex items-center gap-1">F. Asignación <ArrowUpDown size={14} className="text-slate-400" /></div>
+                  </th>
+                  {canEdit && <th className="p-3 font-semibold text-right">Acciones</th>}
                 </tr>
-              ) : (
-                paginatedActivos.map((activo) => (
-                  <tr key={activo.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 font-medium text-slate-700">{activo.serie}</td>
-                    <td className="p-4">
-                      <div className="font-medium text-slate-800">{activo.tipo}</div>
-                      <div className="text-sm text-slate-500">{activo.marca}</div>
+                {/* Filtros Row */}
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.serie} onChange={(e) => handleFilterChange('serie', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.tipo} onChange={(e) => handleFilterChange('tipo', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.marca} onChange={(e) => handleFilterChange('marca', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.modelo} onChange={(e) => handleFilterChange('modelo', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2">
+                    <select value={filters.estado} onChange={(e) => handleFilterChange('estado', e.target.value)} className="w-full text-xs py-1.5 px-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal bg-white shadow-inner">
+                      <option value="Todos">Todos</option>
+                      <option value="Disponible">Disponible</option>
+                      <option value="Asignado">Asignado</option>
+                      <option value="Mantenimiento">Mantenimiento</option>
+                      <option value="Baja">De Baja</option>
+                    </select>
+                  </th>
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.ubicacion} onChange={(e) => handleFilterChange('ubicacion', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.orden} onChange={(e) => handleFilterChange('orden', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                      <input type="text" placeholder="Filtrar..." value={filters.asignado} onChange={(e) => handleFilterChange('asignado', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                    </div>
+                  </th>
+                  <th className="p-2"></th>
+                  <th className="p-2"></th>
+                  {canEdit && <th className="p-2"></th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedActivos.length === 0 ? (
+                  <tr>
+                    <td colSpan={canEdit ? 11 : 10} className="p-12 text-center text-slate-500">
+                      <Search size={32} className="mx-auto text-slate-300 mb-3" />
+                      No se encontraron activos con estos filtros.
                     </td>
-                    <td className="p-4">
-                      <div className="text-slate-800">{activo.modelo}</div>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        activo.estado === 'Disponible' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {activo.estado}
-                      </span>
-                    </td>
-                    <td className="p-4 text-slate-600">{activo.ubicacion}</td>
-                    <td className="p-4 text-slate-600">
-                      {activo.orden_compra ? <span className="bg-slate-100 px-2 py-1 rounded text-xs font-mono border border-slate-200">{activo.orden_compra}</span> : '-'}
-                    </td>
-                    <td className="p-4 text-slate-600 font-medium text-sm">
-                      {activo.prestamos?.find(p => p.estado === 'Activo')?.usuario?.nombre || <span className="text-slate-400 italic font-normal">No asignado</span>}
-                    </td>
-                    {canEdit && (
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Link href={`/activos/editar/${activo.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block">
-                            <Edit size={18} />
-                          </Link>
-                          {canDelete && (
-                            <button onClick={() => deleteActivo(activo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                              <Trash2 size={18} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    )}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  paginatedActivos.map((activo) => {
+                    const pActivo = activo.prestamos?.find(p => p.estado === 'Activo');
+                    
+                    return (
+                    <tr key={activo.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="p-4 font-medium text-slate-700">{activo.serie}</td>
+                      <td className="p-4 font-bold text-slate-800">{activo.tipo}</td>
+                      <td className="p-4 text-slate-600">{activo.marca}</td>
+                      <td className="p-4">
+                        <div className="text-slate-800">{activo.modelo}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                          activo.estado === 'Disponible' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 
+                          activo.estado === 'Baja' ? 'bg-red-100 text-red-700 border border-red-200' :
+                          activo.estado === 'Mantenimiento' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                          'bg-amber-100 text-amber-700 border border-amber-200'
+                        }`}>
+                          {activo.estado}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-600">{activo.ubicacion}</td>
+                      <td className="p-4 text-slate-600">
+                        {activo.orden_compra ? <span className="bg-slate-100 px-2 py-1 rounded text-xs font-mono border border-slate-200 text-slate-600">{activo.orden_compra}</span> : '-'}
+                      </td>
+                      <td className="p-4 text-slate-600 font-medium text-sm">
+                        {pActivo?.usuario?.nombre || <span className="text-slate-400 italic font-normal">No asignado</span>}
+                      </td>
+                      <td className="p-4 text-slate-500 text-sm">
+                        {activo.fecha_creacion ? new Date(activo.fecha_creacion).toLocaleDateString('es-PE', { timeZone: 'UTC' }) : '-'}
+                      </td>
+                      <td className="p-4 text-slate-500 text-sm">
+                        {activo.estado === 'Asignado' && pActivo?.fecha_prestamo ? new Date(pActivo.fecha_prestamo).toLocaleDateString('es-PE', { timeZone: 'UTC' }) : <span className="text-slate-300">-</span>}
+                      </td>
+                      {canEdit && (
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link href={`/activos/editar/${activo.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block" title="Editar">
+                              <Edit size={18} />
+                            </Link>
+                            {canDelete && (
+                              <button onClick={() => deleteActivo(activo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )})
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {filteredActivos.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-slate-200">
-            <div className="text-sm text-slate-500 font-medium">
-              Mostrando <span className="text-slate-800">{totalItems === 0 ? 0 : startIndex + 1}</span> a <span className="text-slate-800">{endIndex}</span> de <span className="text-slate-800">{totalItems}</span> registros
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-500 font-medium">Por página:</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer font-medium"
-                >
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={-1}>Todos</option>
-                </select>
+          {sortedActivos.length > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-slate-200">
+              <div className="text-sm text-slate-500 font-medium">
+                Mostrando <span className="text-slate-800">{totalItems === 0 ? 0 : startIndex + 1}</span> a <span className="text-slate-800">{endIndex}</span> de <span className="text-slate-800">{totalItems}</span> registros
               </div>
 
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500 font-medium">Por página:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer font-medium"
                   >
-                    Anterior
-                  </button>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-                    })
-                    .map((page, index, array) => {
-                      const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
-                      return (
-                        <Fragment key={page}>
-                          {showEllipsisBefore && <span className="px-2 text-slate-400 font-medium">...</span>}
-                          <button
-                            onClick={() => setCurrentPage(page)}
-                            className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all ${
-                              currentPage === page
-                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                                : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        </Fragment>
-                      );
-                    })}
-
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Siguiente
-                  </button>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={-1}>Todos</option>
+                  </select>
                 </div>
-              )}
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Anterior
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                      })
+                      .map((page, index, array) => {
+                        const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                        return (
+                          <Fragment key={page}>
+                            {showEllipsisBefore && <span className="px-2 text-slate-400 font-medium">...</span>}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                                currentPage === page
+                                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                                  : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </Fragment>
+                        );
+                      })}
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </>
       )}
     </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'react-hot-toast';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -22,6 +23,7 @@ export default function NuevoActivo() {
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [empresas, setEmpresas] = useState([]);
+  const [tiposActivos, setTiposActivos] = useState([]);
   const [formData, setFormData] = useState({
     tipo: '',
     marca: '',
@@ -37,16 +39,20 @@ export default function NuevoActivo() {
   });
 
   useEffect(() => {
-    // Cargar empresas
-    const fetchEmpresas = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/empresas');
-        setEmpresas(res.data);
+        const [resEmpresas, resTipos] = await Promise.all([
+          api.get('/empresas'),
+          api.get('/tipos-activos')
+        ]);
+        setEmpresas(resEmpresas.data.filter((e: any) => e.estado));
+        // Filtramos solo los tipos activos
+        setTiposActivos(resTipos.data.filter((t: any) => t.estado));
       } catch (err) {
-        console.error('Error cargando empresas:', err);
+        console.error('Error cargando catálogos:', err);
       }
     };
-    fetchEmpresas();
+    fetchData();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -64,7 +70,7 @@ export default function NuevoActivo() {
       router.push('/activos');
     } catch (error) {
       console.error('Error al crear activo:', error);
-      alert('Hubo un error al crear el activo. Verifica tus permisos y los datos.');
+      toast.error('Hubo un error al crear el activo. Verifica tus permisos y los datos.');
     } finally {
       setLoading(false);
     }
@@ -99,11 +105,11 @@ export default function NuevoActivo() {
         }));
 
         await api.post('/activos/lote', batch);
-        alert(`Se importaron los activos correctamente.`);
+        toast.success(`Se importaron los activos correctamente.`);
         router.push('/activos');
       } catch (error: any) {
         console.error("Error importing excel", error);
-        alert(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
+        toast.error(error.response?.data?.message || "Hubo un error al procesar el archivo Excel. Asegúrate de que las columnas tengan los nombres correctos.");
       } finally {
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -185,13 +191,9 @@ export default function NuevoActivo() {
             <label className="text-sm font-semibold text-slate-700">Tipo de Activo *</label>
             <select name="tipo" required value={formData.tipo} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
               <option value="">- Seleccione -</option>
-              <option value="Laptop">Laptop</option>
-              <option value="Monitor">Monitor</option>
-              <option value="Celular">Celular</option>
-              <option value="Tablet">Tablet</option>
-              <option value="Periferico">Periférico</option>
-              <option value="Vehículo">Vehículo</option>
-              <option value="Mobiliario">Mobiliario</option>
+              {tiposActivos.map((tipo: any) => (
+                <option key={tipo.id} value={tipo.nombre}>{tipo.nombre}</option>
+              ))}
             </select>
           </div>
 

@@ -10,7 +10,7 @@ export class EmpresasService {
   }
 
   findAll() {
-    return this.prisma.empresa.findMany({ where: { estado: true } });
+    return this.prisma.empresa.findMany();
   }
 
   findOne(id: number) {

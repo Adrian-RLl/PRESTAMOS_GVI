@@ -10,7 +10,7 @@ export class GerenciasService {
   }
 
   findAll() {
-    return this.prisma.gerencia.findMany({ where: { estado: true } });
+    return this.prisma.gerencia.findMany();
   }
 
   findOne(id: number) {

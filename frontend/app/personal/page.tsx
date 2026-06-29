@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api, Usuario, EntidadBase } from '@/lib/api';
-import { Plus, Edit2, Trash2, X, Check, Search, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, Search, AlertCircle, ArrowUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
@@ -19,8 +19,22 @@ export default function PersonalCatalog() {
   const [data, setData] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // General Search
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Column Filters
+  const [filters, setFilters] = useState({
+    dni: '',
+    nombre: '',
+    empresa: '',
+    area: '',
+    estado: 'Todos'
+  });
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
   // Catalogs
   const [empresas, setEmpresas] = useState<EntidadBase[]>([]);
   const [areas, setAreas] = useState<EntidadBase[]>([]);
@@ -65,12 +79,85 @@ export default function PersonalCatalog() {
     }
   };
 
-  const filteredData = data.filter(item => 
-    item.rol_id === 3 &&
-    (item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.dni || '').includes(searchTerm))
-  );
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const personalData = data.filter(item => item.rol_id === 3);
+
+  const filteredData = personalData.filter(item => {
+    // General Search
+    let searchMatch = true;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchText = [
+        item.nombre,
+        item.correo,
+        item.dni,
+        item.empresa?.nombre,
+        item.area?.nombre,
+        item.cargo?.nombre
+      ].join(' ').toLowerCase();
+      searchMatch = matchText.includes(term);
+    }
+
+    if (!searchMatch) return false;
+
+    // Column Filters
+    if (filters.estado !== 'Todos') {
+      if (filters.estado === 'Activo' && !item.activo) return false;
+      if (filters.estado === 'Inactivo' && item.activo) return false;
+    }
+    
+    if (filters.dni && !(item.dni || '').toLowerCase().includes(filters.dni.toLowerCase())) return false;
+
+    const nombreText = [item.nombre, item.correo].join(' ').toLowerCase();
+    if (filters.nombre && !nombreText.includes(filters.nombre.toLowerCase())) return false;
+
+    const empresaText = (item.empresa?.nombre || '').toLowerCase();
+    if (filters.empresa && !empresaText.includes(filters.empresa.toLowerCase())) return false;
+
+    const areaText = [item.area?.nombre, item.cargo?.nombre].join(' ').toLowerCase();
+    if (filters.area && !areaText.includes(filters.area.toLowerCase())) return false;
+
+    return true;
+  });
+
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortConfig) return 0;
+    
+    let aValue: any = '';
+    let bValue: any = '';
+
+    if (sortConfig.key === 'dni') {
+      aValue = a.dni || '';
+      bValue = b.dni || '';
+    } else if (sortConfig.key === 'nombre') {
+      aValue = a.nombre;
+      bValue = b.nombre;
+    } else if (sortConfig.key === 'empresa') {
+      aValue = a.empresa?.nombre || '';
+      bValue = b.empresa?.nombre || '';
+    } else if (sortConfig.key === 'area') {
+      aValue = `${a.area?.nombre} ${a.cargo?.nombre}`;
+      bValue = `${b.area?.nombre} ${b.cargo?.nombre}`;
+    } else if (sortConfig.key === 'estado') {
+      aValue = a.activo ? 1 : 0;
+      bValue = b.activo ? 1 : 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const openModal = (item?: Usuario) => {
     if (item) {
@@ -163,7 +250,7 @@ export default function PersonalCatalog() {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
         <input 
           type="text" 
-          placeholder="Buscar por DNI, nombre o correo..."
+          placeholder="Búsqueda general..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -181,21 +268,66 @@ export default function PersonalCatalog() {
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
             <tr className="bg-slate-100 border-b border-slate-200 text-slate-500 text-sm">
-              <th className="p-4 font-medium">DNI</th>
-              <th className="p-4 font-medium">Nombre / Correo</th>
-              <th className="p-4 font-medium">Empresa</th>
-              <th className="p-4 font-medium">Área / Cargo</th>
-              <th className="p-4 font-medium">Estado</th>
+              <th className="p-4 font-medium cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('dni')}>
+                <div className="flex items-center gap-1">DNI <ArrowUpDown size={14} className="text-slate-400" /></div>
+              </th>
+              <th className="p-4 font-medium cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('nombre')}>
+                <div className="flex items-center gap-1">Nombre / Correo <ArrowUpDown size={14} className="text-slate-400" /></div>
+              </th>
+              <th className="p-4 font-medium cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('empresa')}>
+                <div className="flex items-center gap-1">Empresa <ArrowUpDown size={14} className="text-slate-400" /></div>
+              </th>
+              <th className="p-4 font-medium cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('area')}>
+                <div className="flex items-center gap-1">Área / Cargo <ArrowUpDown size={14} className="text-slate-400" /></div>
+              </th>
+              <th className="p-4 font-medium cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('estado')}>
+                <div className="flex items-center gap-1">Estado <ArrowUpDown size={14} className="text-slate-400" /></div>
+              </th>
               {isValidador && <th className="p-4 font-medium text-right">Acciones</th>}
+            </tr>
+            {/* Filtros Row */}
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="p-2">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                  <input type="text" placeholder="Filtrar DNI..." value={filters.dni} onChange={(e) => handleFilterChange('dni', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                </div>
+              </th>
+              <th className="p-2">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                  <input type="text" placeholder="Filtrar nombre/correo..." value={filters.nombre} onChange={(e) => handleFilterChange('nombre', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                </div>
+              </th>
+              <th className="p-2">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                  <input type="text" placeholder="Filtrar empresa..." value={filters.empresa} onChange={(e) => handleFilterChange('empresa', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                </div>
+              </th>
+              <th className="p-2">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2 top-2.5 text-slate-400" />
+                  <input type="text" placeholder="Filtrar área/cargo..." value={filters.area} onChange={(e) => handleFilterChange('area', e.target.value)} className="w-full text-xs py-1.5 pl-6 pr-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal shadow-inner" />
+                </div>
+              </th>
+              <th className="p-2">
+                <select value={filters.estado} onChange={(e) => handleFilterChange('estado', e.target.value)} className="w-full text-xs py-1.5 px-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 font-normal bg-white shadow-inner">
+                  <option value="Todos">Todos</option>
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                </select>
+              </th>
+              {isValidador && <th className="p-2"></th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={isValidador ? 6 : 5} className="p-8 text-center text-slate-500">Cargando usuarios...</td></tr>
-            ) : filteredData.length === 0 ? (
-              <tr><td colSpan={isValidador ? 6 : 5} className="p-8 text-center text-slate-500">No se encontraron usuarios</td></tr>
+              <tr><td colSpan={isValidador ? 6 : 5} className="p-8 text-center text-slate-500">Cargando personal...</td></tr>
+            ) : sortedData.length === 0 ? (
+              <tr><td colSpan={isValidador ? 6 : 5} className="p-8 text-center text-slate-500">No se encontraron registros de personal con estos filtros.</td></tr>
             ) : (
-              filteredData.map(item => (
+              sortedData.map(item => (
                 <tr key={item.id} className="border-b border-slate-200 hover:bg-white transition-colors">
                   <td className="p-4 font-medium text-slate-700">
                     {item.dni || <span className="text-slate-400 italic">No registrado</span>}
@@ -266,6 +398,7 @@ export default function PersonalCatalog() {
                     <label className="block text-sm font-medium text-slate-700 mb-1">DNI <span className="text-red-500">*</span></label>
                     <input 
                       type="text" value={formData.dni} onChange={(e) => setFormData({...formData, dni: e.target.value})}
+                      maxLength={8} pattern="\d{8}" title="El DNI debe tener 8 dígitos numéricos"
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required
                     />
                   </div>
