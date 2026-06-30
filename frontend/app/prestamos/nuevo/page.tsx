@@ -27,11 +27,11 @@ export default function NuevaEntrega() {
   // Form State
   const [dniBusqueda, setDniBusqueda] = useState('');
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('');
-  const [empresaId, setEmpresaId] = useState('');
-  const [gerenciaId, setGerenciaId] = useState('');
-  const [sedeId, setSedeId] = useState('');
-  const [areaId, setAreaId] = useState('');
-  const [cargoId, setCargoId] = useState('');
+  const [empresaNombre, setEmpresaNombre] = useState('');
+  const [gerenciaNombre, setGerenciaNombre] = useState('');
+  const [sedeNombre, setSedeNombre] = useState('');
+  const [areaNombre, setAreaNombre] = useState('');
+  const [cargoNombre, setCargoNombre] = useState('');
   const [fechaEntrega, setFechaEntrega] = useState(new Date().toISOString().split('T')[0]);
   const [fechaDevolucion, setFechaDevolucion] = useState('');
   const [tipoEntrega, setTipoEntrega] = useState('prestamo');
@@ -91,11 +91,11 @@ export default function NuevaEntrega() {
       if (res.data) {
         const u = res.data;
         setUsuarioSeleccionado(u.id.toString());
-        setEmpresaId(u.empresa_id?.toString() || '');
-        setGerenciaId(u.gerencia_id?.toString() || '');
-        setSedeId(u.sede_id?.toString() || '');
-        setAreaId(u.area_id?.toString() || '');
-        setCargoId(u.cargo_id?.toString() || '');
+        setEmpresaNombre(u.empresa?.nombre || '');
+        setGerenciaNombre(u.gerencia?.nombre || '');
+        setSedeNombre(u.sede?.nombre || '');
+        setAreaNombre(u.area?.nombre || '');
+        setCargoNombre(u.cargo?.nombre || '');
         setError('');
       } else {
         setError('Usuario no encontrado con ese DNI');
@@ -110,11 +110,11 @@ export default function NuevaEntrega() {
     setUsuarioSeleccionado(id);
     const u = usuarios.find(usr => usr.id.toString() === id);
     if (u) {
-      setEmpresaId(u.empresa_id?.toString() || '');
-      setGerenciaId(u.gerencia_id?.toString() || '');
-      setSedeId(u.sede_id?.toString() || '');
-      setAreaId(u.area_id?.toString() || '');
-      setCargoId(u.cargo_id?.toString() || '');
+      setEmpresaNombre(u.empresa?.nombre || '');
+      setGerenciaNombre(u.gerencia?.nombre || '');
+      setSedeNombre(u.sede?.nombre || '');
+      setAreaNombre(u.area?.nombre || '');
+      setCargoNombre(u.cargo?.nombre || '');
     }
   };
 
@@ -206,6 +206,16 @@ export default function NuevaEntrega() {
       fecha_prestamo: fechaEntrega,
       fecha_devolucion: tipoEntrega === 'prestamo' ? fechaDevolucion : null
     };
+
+    // Actualizar el perfil del usuario con los catálogos editados de forma transparente
+    api.put(`/usuarios/${usuarioSeleccionado}`, {
+      empresa: empresaNombre,
+      gerencia: gerenciaNombre,
+      sede: sedeNombre,
+      area: areaNombre,
+      cargo: cargoNombre
+    }).catch(err => console.error("Error al actualizar catálogos del usuario", err));
+
     sessionStorage.setItem('nuevoPrestamo', JSON.stringify(prestamoData));
     router.push('/prestamos/nuevo/firma');
   };
@@ -319,50 +329,50 @@ export default function NuevaEntrega() {
                 <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
                   <Building2 size={14} className="mr-1" /> Empresa
                 </label>
-                <select value={empresaId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
-                  <option value="">-</option>
-                  {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
+                <input list="empresas-list" value={empresaNombre} onChange={e => setEmpresaNombre(e.target.value)} placeholder="Escribe o selecciona..." className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" />
+                <datalist id="empresas-list">
+                  {empresas.map(e => <option key={e.id} value={e.nombre} />)}
+                </datalist>
               </div>
               
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
                   <MapPin size={14} className="mr-1" /> Sede
                 </label>
-                <select value={sedeId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
-                  <option value="">-</option>
-                  {sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                </select>
+                <input list="sedes-list" value={sedeNombre} onChange={e => setSedeNombre(e.target.value)} placeholder="Escribe o selecciona..." className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" />
+                <datalist id="sedes-list">
+                  {sedes.map(s => <option key={s.id} value={s.nombre} />)}
+                </datalist>
               </div>
               
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
                   <Briefcase size={14} className="mr-1" /> Gerencia
                 </label>
-                <select value={gerenciaId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
-                  <option value="">-</option>
-                  {gerencias.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-                </select>
+                <input list="gerencias-list" value={gerenciaNombre} onChange={e => setGerenciaNombre(e.target.value)} placeholder="Escribe o selecciona..." className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" />
+                <datalist id="gerencias-list">
+                  {gerencias.map(g => <option key={g.id} value={g.nombre} />)}
+                </datalist>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
                   <Briefcase size={14} className="mr-1" /> Área
                 </label>
-                <select value={areaId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
-                  <option value="">-</option>
-                  {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                </select>
+                <input list="areas-list" value={areaNombre} onChange={e => setAreaNombre(e.target.value)} placeholder="Escribe o selecciona..." className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" />
+                <datalist id="areas-list">
+                  {areas.map(a => <option key={a.id} value={a.nombre} />)}
+                </datalist>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center">
                   <Briefcase size={14} className="mr-1" /> Cargo
                 </label>
-                <select value={cargoId} disabled className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed appearance-none">
-                  <option value="">-</option>
-                  {cargos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
+                <input list="cargos-list" value={cargoNombre} onChange={e => setCargoNombre(e.target.value)} placeholder="Escribe o selecciona..." className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" />
+                <datalist id="cargos-list">
+                  {cargos.map(c => <option key={c.id} value={c.nombre} />)}
+                </datalist>
               </div>
             </div>
           </div>

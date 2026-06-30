@@ -62,7 +62,7 @@ model Usuario {
   nombres          String?
   apellido_paterno String?
   apellido_materno String?
-  correo           String     @unique // Este será 'Correo Empresa'
+  correo           String?    @unique // Este será 'Correo Empresa'
   correo_personal  String?
   telefono_personal String?
   celular_personal String?

@@ -57,10 +57,32 @@ export class ActivosService {
       }),
     );
 
-    return this.prisma.activo.createMany({
-      data: resolvedActivos,
-      skipDuplicates: true,
-    });
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    // Ejecutar en secuencia para manejar upsert con validación
+    for (const activo of resolvedActivos) {
+      const existing = await this.prisma.activo.findUnique({
+        where: { serie: activo.serie }
+      });
+
+      if (existing) {
+        if (existing.estado !== 'Asignado') {
+          await this.prisma.activo.update({
+            where: { serie: activo.serie },
+            data: activo
+          });
+          updatedCount++;
+        }
+      } else {
+        await this.prisma.activo.create({
+          data: activo
+        });
+        createdCount++;
+      }
+    }
+
+    return { count: createdCount + updatedCount, created: createdCount, updated: updatedCount };
   }
 
   async findAll() {

@@ -170,18 +170,20 @@ export class PrestamosService {
 
     try {
       const pdfBuffer = await this.pdfService.generateReturnPdfMultiple([transactionResult]);
-      await this.mailerService.sendMail({
-        to: transactionResult.usuario.correo,
-        subject: `Acta de Devolución de Activo`,
-        text: `Hola ${transactionResult.usuario.nombre},\n\nAdjuntamos el acta de devolución del equipo ${transactionResult.activo.tipo} (${transactionResult.activo.marca}).\n\nSaludos,\nEquipo VGI.`,
-        attachments: [
-          {
-            filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}.pdf`,
-            content: pdfBuffer,
-          },
-        ],
-      });
-      console.log('Correo de devolución enviado a', transactionResult.usuario.correo);
+      if (transactionResult.usuario.correo) {
+        await this.mailerService.sendMail({
+          to: transactionResult.usuario.correo,
+          subject: `Acta de Devolución de Activo`,
+          text: `Hola ${transactionResult.usuario.nombre},\n\nAdjuntamos el acta de devolución del equipo ${transactionResult.activo.tipo} (${transactionResult.activo.marca}).\n\nSaludos,\nEquipo VGI.`,
+          attachments: [
+            {
+              filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}.pdf`,
+              content: pdfBuffer,
+            },
+          ],
+        });
+        console.log('Correo de devolución enviado a', transactionResult.usuario.correo);
+      }
     } catch (err) {
       console.error('Error al generar PDF o enviar correo de devolución', err);
     }
@@ -280,18 +282,20 @@ export class PrestamosService {
         .map((p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`)
         .join('\n- ');
       
-      await this.mailerService.sendMail({
-        to: transactionResult[0].usuario.correo,
-        subject: `Acta de Devolución de Activos - ${transactionResult.length} equipo(s)`,
-        text: `Hola ${transactionResult[0].usuario.nombre},\n\nAdjuntamos el acta de devolución de los siguientes equipos:\n- ${equiposList}\n\nSaludos,\nEquipo VGI.`,
-        attachments: [
-          {
-            filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}.pdf`,
-            content: pdfBuffer,
-          },
-        ],
-      });
-      console.log('Correo consolidado de devolución enviado a', transactionResult[0].usuario.correo);
+      if (transactionResult[0].usuario.correo) {
+        await this.mailerService.sendMail({
+          to: transactionResult[0].usuario.correo,
+          subject: `Acta de Devolución de Activos - ${transactionResult.length} equipo(s)`,
+          text: `Hola ${transactionResult[0].usuario.nombre},\n\nAdjuntamos el acta de devolución de los siguientes equipos:\n- ${equiposList}\n\nSaludos,\nEquipo VGI.`,
+          attachments: [
+            {
+              filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}.pdf`,
+              content: pdfBuffer,
+            },
+          ],
+        });
+        console.log('Correo de devolución enviado a', transactionResult[0].usuario.correo);
+      }
     } catch (err) {
       console.error('Error al generar PDF o enviar correo de devolución', err);
     }

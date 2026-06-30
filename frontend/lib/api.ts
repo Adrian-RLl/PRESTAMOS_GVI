@@ -43,6 +43,8 @@ export interface Activo {
   modelo: string;
   serie: string;
   estado: string;
+  condicion?: string;
+  vigencia?: string;
   ubicacion: string;
   observaciones?: string;
   orden_compra?: string;

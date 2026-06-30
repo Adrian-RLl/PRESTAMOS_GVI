@@ -83,9 +83,11 @@ export class UsuariosService {
     }
 
     // Verificar si el correo ya existe
-    const existing = await this.findByEmail(data.correo);
-    if (existing) {
-      throw new BadRequestException('El correo ya está en uso por otro usuario.');
+    if (data.correo) {
+      const existing = await this.findByEmail(data.correo);
+      if (existing) {
+        throw new BadRequestException('El correo ya está en uso por otro usuario.');
+      }
     }
 
     // Verificar si el DNI ya existe (si se proporcionó)
@@ -96,89 +98,117 @@ export class UsuariosService {
       }
     }
 
+    // Auto-create catalogs if string names are provided
+    if (data.empresa && typeof data.empresa === 'string') {
+      let res = await this.prisma.empresa.findFirst({ where: { nombre: data.empresa } });
+      if (!res) res = await this.prisma.empresa.create({ data: { nombre: data.empresa, estado: true } });
+      data.empresa_id = res.id;
+    }
+    if (data.gerencia && typeof data.gerencia === 'string') {
+      let res = await this.prisma.gerencia.findFirst({ where: { nombre: data.gerencia } });
+      if (!res) res = await this.prisma.gerencia.create({ data: { nombre: data.gerencia, estado: true } });
+      data.gerencia_id = res.id;
+    }
+    if (data.sede && typeof data.sede === 'string') {
+      let res = await this.prisma.sede.findFirst({ where: { nombre: data.sede } });
+      if (!res) res = await this.prisma.sede.create({ data: { nombre: data.sede, estado: true } });
+      data.sede_id = res.id;
+    }
+    if (data.area && typeof data.area === 'string') {
+      let res = await this.prisma.area.findFirst({ where: { nombre: data.area } });
+      if (!res) res = await this.prisma.area.create({ data: { nombre: data.area, estado: true } });
+      data.area_id = res.id;
+    }
+    if (data.cargo && typeof data.cargo === 'string') {
+      let res = await this.prisma.cargo.findFirst({ where: { nombre: data.cargo } });
+      if (!res) res = await this.prisma.cargo.create({ data: { nombre: data.cargo, estado: true } });
+      data.cargo_id = res.id;
+    }
+
     const hash = await bcrypt.hash(data.contraseña, 10);
 
     return this.prisma.usuario.create({
       data: {
         dni: data.dni,
         nombre: data.nombre,
-        correo: data.correo,
+        nombres: data.nombres,
+        apellido_paterno: data.apellido_paterno,
+        apellido_materno: data.apellido_materno,
+        correo: data.correo || null,
+        correo_personal: data.correo_personal,
+        telefono_personal: data.telefono_personal,
+        celular_personal: data.celular_personal,
+        celular_empresa: data.celular_empresa,
+        genero: data.genero,
         contraseña: hash,
         rol_id: data.rol_id,
-        empresa_id: data.empresa_id,
-        area_id: data.area_id,
-        cargo_id: data.cargo_id,
-        gerencia_id: data.gerencia_id,
-        sede_id: data.sede_id,
+        empresa_id: data.empresa_id ? Number(data.empresa_id) : null,
+        area_id: data.area_id ? Number(data.area_id) : null,
+        cargo_id: data.cargo_id ? Number(data.cargo_id) : null,
+        gerencia_id: data.gerencia_id ? Number(data.gerencia_id) : null,
+        sede_id: data.sede_id ? Number(data.sede_id) : null,
         activo: data.activo ?? true,
       },
     });
   }
 
   async createBatch(dataArray: any[]) {
-    // Resolviendo nombres de catálogos a IDs correspondientes
-    const resolvedDataArray = await Promise.all(
-      dataArray.map(async (data) => {
+    try {
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const data of dataArray) {
         let empresa_id: number | null = null;
         let gerencia_id: number | null = null;
         let sede_id: number | null = null;
         let area_id: number | null = null;
         let cargo_id: number | null = null;
 
-        // Buscar IDs por nombre en Prisma
+        // Buscar IDs por nombre en Prisma, si no existen, los creamos
         if (data.empresa) {
-          const res = await this.prisma.empresa.findFirst({
-            where: { nombre: data.empresa },
-          });
-          if (res) empresa_id = res.id;
+          let res = await this.prisma.empresa.findFirst({ where: { nombre: data.empresa } });
+          if (!res) res = await this.prisma.empresa.create({ data: { nombre: data.empresa, estado: true } });
+          empresa_id = res.id;
         } else if (data.empresa_id) {
           empresa_id = Number(data.empresa_id);
         }
 
         if (data.gerencia) {
-          const res = await this.prisma.gerencia.findFirst({
-            where: { nombre: data.gerencia },
-          });
-          if (res) gerencia_id = res.id;
+          let res = await this.prisma.gerencia.findFirst({ where: { nombre: data.gerencia } });
+          if (!res) res = await this.prisma.gerencia.create({ data: { nombre: data.gerencia, estado: true } });
+          gerencia_id = res.id;
         } else if (data.gerencia_id) {
           gerencia_id = Number(data.gerencia_id);
         }
 
         if (data.sede) {
-          const res = await this.prisma.sede.findFirst({
-            where: { nombre: data.sede },
-          });
-          if (res) sede_id = res.id;
+          let res = await this.prisma.sede.findFirst({ where: { nombre: data.sede } });
+          if (!res) res = await this.prisma.sede.create({ data: { nombre: data.sede, estado: true } });
+          sede_id = res.id;
         } else if (data.sede_id) {
           sede_id = Number(data.sede_id);
         }
 
         if (data.area) {
-          const res = await this.prisma.area.findFirst({
-            where: { nombre: data.area },
-          });
-          if (res) area_id = res.id;
+          let res = await this.prisma.area.findFirst({ where: { nombre: data.area } });
+          if (!res) res = await this.prisma.area.create({ data: { nombre: data.area, estado: true } });
+          area_id = res.id;
         } else if (data.area_id) {
           area_id = Number(data.area_id);
         }
 
         if (data.cargo) {
-          const res = await this.prisma.cargo.findFirst({
-            where: { nombre: data.cargo },
-          });
-          if (res) cargo_id = res.id;
+          let res = await this.prisma.cargo.findFirst({ where: { nombre: data.cargo } });
+          if (!res) res = await this.prisma.cargo.create({ data: { nombre: data.cargo, estado: true } });
+          cargo_id = res.id;
         } else if (data.cargo_id) {
           cargo_id = Number(data.cargo_id);
         }
 
-        const nombreCompleto =
-          data.nombre ||
-          `${data.nombres || ''} ${data.apellido_paterno || ''} ${data.apellido_materno || ''}`.trim();
-        const hash = data.contraseña
-          ? await bcrypt.hash(data.contraseña, 10)
-          : await bcrypt.hash(data.dni || '123456', 10);
+        const nombreCompleto = data.nombre || `${data.nombres || ''} ${data.apellido_paterno || ''} ${data.apellido_materno || ''}`.trim();
+        const hash = data.contraseña ? await bcrypt.hash(data.contraseña, 10) : await bcrypt.hash(data.dni || '123456', 10);
 
-        return {
+        const resolvedData = {
           dni: data.dni ? String(data.dni) : null,
           nombre: nombreCompleto,
           nombres: data.nombres || null,
@@ -191,7 +221,7 @@ export class UsuariosService {
           celular_empresa: data.celular_empresa || null,
           genero: data.genero || null,
           contraseña: hash,
-          rol_id: data.rol_id || 3, // Rol Personal (Usuario normal) por defecto
+          rol_id: data.rol_id || 3,
           empresa_id,
           gerencia_id,
           sede_id,
@@ -199,16 +229,30 @@ export class UsuariosService {
           cargo_id,
           activo: data.activo !== undefined ? data.activo : true,
         };
-      }),
-    );
 
-    try {
-      const result = await this.prisma.usuario.createMany({
-        data: resolvedDataArray,
-        skipDuplicates: true, // Salta duplicados de DNI o Correo
-      });
-      return { success: true, count: result.count };
+        let existing: any = null;
+        if (resolvedData.dni) {
+          existing = await this.prisma.usuario.findUnique({ where: { dni: resolvedData.dni } });
+        }
+        if (!existing && resolvedData.correo) {
+          existing = await this.prisma.usuario.findUnique({ where: { correo: resolvedData.correo } });
+        }
+
+        if (existing) {
+          await this.prisma.usuario.update({
+            where: { id: existing.id },
+            data: resolvedData,
+          });
+          updatedCount++;
+        } else {
+          await this.prisma.usuario.create({ data: resolvedData });
+          createdCount++;
+        }
+      }
+
+      return { success: true, count: createdCount + updatedCount, created: createdCount, updated: updatedCount };
     } catch (error) {
+      console.error("Error en importación masiva de usuarios:", error);
       throw new BadRequestException(
         'Error al importar usuarios masivamente. Verifique el formato y datos duplicados.',
       );
@@ -267,6 +311,38 @@ export class UsuariosService {
 
     if (data.contraseña) {
       updateData.contraseña = await bcrypt.hash(data.contraseña, 10);
+    }
+
+    // Auto-create catalogs if string names are provided
+    if (updateData.empresa && typeof updateData.empresa === 'string') {
+      let res = await this.prisma.empresa.findFirst({ where: { nombre: updateData.empresa } });
+      if (!res) res = await this.prisma.empresa.create({ data: { nombre: updateData.empresa, estado: true } });
+      updateData.empresa_id = res.id;
+      delete updateData.empresa;
+    }
+    if (updateData.gerencia && typeof updateData.gerencia === 'string') {
+      let res = await this.prisma.gerencia.findFirst({ where: { nombre: updateData.gerencia } });
+      if (!res) res = await this.prisma.gerencia.create({ data: { nombre: updateData.gerencia, estado: true } });
+      updateData.gerencia_id = res.id;
+      delete updateData.gerencia;
+    }
+    if (updateData.sede && typeof updateData.sede === 'string') {
+      let res = await this.prisma.sede.findFirst({ where: { nombre: updateData.sede } });
+      if (!res) res = await this.prisma.sede.create({ data: { nombre: updateData.sede, estado: true } });
+      updateData.sede_id = res.id;
+      delete updateData.sede;
+    }
+    if (updateData.area && typeof updateData.area === 'string') {
+      let res = await this.prisma.area.findFirst({ where: { nombre: updateData.area } });
+      if (!res) res = await this.prisma.area.create({ data: { nombre: updateData.area, estado: true } });
+      updateData.area_id = res.id;
+      delete updateData.area;
+    }
+    if (updateData.cargo && typeof updateData.cargo === 'string') {
+      let res = await this.prisma.cargo.findFirst({ where: { nombre: updateData.cargo } });
+      if (!res) res = await this.prisma.cargo.create({ data: { nombre: updateData.cargo, estado: true } });
+      updateData.cargo_id = res.id;
+      delete updateData.cargo;
     }
 
     return this.prisma.usuario.update({
