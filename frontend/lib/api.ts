@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001` : 'http://localhost:3001'),
   headers: {
     'Content-Type': 'application/json',
   },
