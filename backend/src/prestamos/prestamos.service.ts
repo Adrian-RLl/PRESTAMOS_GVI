@@ -91,7 +91,7 @@ export class PrestamosService {
         text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\n${resultados[0].fecha_devolucion ? `Recuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}.` : 'Recuerda que esta es una asignación permanente.'}\n\nSaludos,\nEquipo VGI.`,
         attachments: [
           {
-            filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}.pdf`,
+            filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}_${Date.now()}.pdf`,
             content: pdfBuffer,
           },
         ],
@@ -177,7 +177,7 @@ export class PrestamosService {
           text: `Hola ${transactionResult.usuario.nombre},\n\nAdjuntamos el acta de devolución del equipo ${transactionResult.activo.tipo} (${transactionResult.activo.marca}).\n\nSaludos,\nEquipo VGI.`,
           attachments: [
             {
-              filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}.pdf`,
+              filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}_${Date.now()}.pdf`,
               content: pdfBuffer,
             },
           ],
@@ -289,7 +289,7 @@ export class PrestamosService {
           text: `Hola ${transactionResult[0].usuario.nombre},\n\nAdjuntamos el acta de devolución de los siguientes equipos:\n- ${equiposList}\n\nSaludos,\nEquipo VGI.`,
           attachments: [
             {
-              filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}.pdf`,
+              filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}_${Date.now()}.pdf`,
               content: pdfBuffer,
             },
           ],

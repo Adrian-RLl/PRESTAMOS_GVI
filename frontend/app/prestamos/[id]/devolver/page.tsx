@@ -115,7 +115,7 @@ export default function DevolverPrestamo() {
 
                 <div>
                   <p className="text-sm font-medium text-slate-500">Fecha Límite de Devolución</p>
-                  <p className="font-semibold text-slate-800">{new Date(prestamo.fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}</p>
+                  <p className="font-semibold text-slate-800">{prestamo.fecha_devolucion ? new Date(prestamo.fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' }) : 'Sin fecha límite'}</p>
                 </div>
               </div>
             </div>

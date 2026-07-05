@@ -20,9 +20,9 @@ export default function RecuperarPage() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@vanguardfresh\.pe$/i;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(correo)) {
-      setError('Por favor, ingresa un correo corporativo válido (ej. usuario@vanguardfresh.pe).');
+      setError('Por favor, ingresa un correo electrónico válido.');
       return;
     }
 
@@ -108,7 +108,7 @@ export default function RecuperarPage() {
                 {/* Campo Correo Electrónico */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Correo Electrónico Corporativo
+                    Correo Electrónico
                   </label>
                   
                   <div className="relative">
@@ -121,7 +121,7 @@ export default function RecuperarPage() {
                       disabled={loading}
                       value={correo}
                       onChange={(e) => setCorreo(e.target.value)}
-                      placeholder="usuario@vanguardfresh.pe"
+                      placeholder="usuario@ejemplo.com"
                       className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-slate-950/60 text-white outline-none transition-all login-input ${
                         error && !correo.trim() 
                           ? 'border-rose-500/50 focus:ring-2 focus:ring-rose-500 focus:border-transparent' 
@@ -130,20 +130,8 @@ export default function RecuperarPage() {
                     />
                   </div>
 
-                  {/* Sugerencia de Autocompletado */}
-                  {!correo.includes('@') && correo.trim().length > 0 && (
-                    <div className="flex justify-end animate-in fade-in slide-in-from-top-1 duration-200">
-                      <button 
-                        type="button" 
-                        onClick={() => setCorreo(correo + '@vanguardfresh.pe')}
-                        className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/25 px-2.5 py-1.5 rounded-lg border border-blue-500/20 active:scale-95 duration-100"
-                      >
-                        Autocompletar @vanguardfresh.pe
-                      </button>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
 
               {/* Botón Enviar */}
               <button 

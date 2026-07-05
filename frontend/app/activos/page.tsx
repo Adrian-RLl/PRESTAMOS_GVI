@@ -88,7 +88,8 @@ export default function ActivosPage() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Activos");
-    XLSX.writeFile(wb, "Activos_Exportados.xlsx");
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Activos_Exportados_${dateStr}.xlsx`);
     toast.success("Datos exportados a Excel correctamente.");
   };
 
