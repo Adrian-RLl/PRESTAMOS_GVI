@@ -208,7 +208,7 @@ export default function NuevaEntrega() {
     };
 
     // Actualizar el perfil del usuario con los catálogos editados de forma transparente
-    api.put(`/usuarios/${usuarioSeleccionado}`, {
+    api.patch(`/usuarios/${usuarioSeleccionado}`, {
       empresa: empresaNombre,
       gerencia: gerenciaNombre,
       sede: sedeNombre,

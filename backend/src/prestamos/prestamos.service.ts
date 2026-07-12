@@ -76,30 +76,32 @@ export class PrestamosService {
       return creados;
     });
 
-    // Generar un solo PDF consolidado y enviar un solo correo
-    try {
-      const pdfBuffer =
-        await this.pdfService.generateLoanPdfMultiple(resultados);
-      const equiposList = resultados
-        .map(
-          (p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`,
-        )
-        .join('\n- ');
-      await this.mailerService.sendMail({
-        to: resultados[0].usuario.correo,
-        subject: `Acta de Entrega de Activos - ${resultados.length} equipo(s)`,
-        text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\n${resultados[0].fecha_devolucion ? `Recuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}.` : 'Recuerda que esta es una asignación permanente.'}\n\nSaludos,\nEquipo VGI.`,
-        attachments: [
-          {
-            filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}_${Date.now()}.pdf`,
-            content: pdfBuffer,
-          },
-        ],
-      });
-      console.log('Correo consolidado enviado a', resultados[0].usuario.correo);
-    } catch (err) {
-      console.error('Error al generar PDF consolidado o enviar correo', err);
-    }
+    // Generar un solo PDF consolidado y enviar un solo correo en segundo plano
+    Promise.resolve().then(async () => {
+      try {
+        const pdfBuffer =
+          await this.pdfService.generateLoanPdfMultiple(resultados);
+        const equiposList = resultados
+          .map(
+            (p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`,
+          )
+          .join('\n- ');
+        await this.mailerService.sendMail({
+          to: resultados[0].usuario.correo,
+          subject: `Acta de Entrega de Activos - ${resultados.length} equipo(s)`,
+          text: `Hola ${resultados[0].usuario.nombre},\n\nAdjuntamos el acta de entrega de los siguientes equipos:\n- ${equiposList}\n\n${resultados[0].fecha_devolucion ? `Recuerda que la fecha estimada de devolución es el ${new Date(resultados[0].fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}.` : 'Recuerda que esta es una asignación permanente.'}\n\nSaludos,\nEquipo VGI.`,
+          attachments: [
+            {
+              filename: `Acta_Entrega_${resultados[0].usuario.dni || resultados[0].usuario_id}_${Date.now()}.pdf`,
+              content: pdfBuffer,
+            },
+          ],
+        });
+        console.log('Correo consolidado enviado a', resultados[0].usuario.correo);
+      } catch (err) {
+        console.error('Error al generar PDF consolidado o enviar correo', err);
+      }
+    });
 
     return resultados;
   }
@@ -168,25 +170,28 @@ export class PrestamosService {
       return updatedPrestamo;
     });
 
-    try {
-      const pdfBuffer = await this.pdfService.generateReturnPdfMultiple([transactionResult]);
-      if (transactionResult.usuario.correo) {
-        await this.mailerService.sendMail({
-          to: transactionResult.usuario.correo,
-          subject: `Acta de Devolución de Activo`,
-          text: `Hola ${transactionResult.usuario.nombre},\n\nAdjuntamos el acta de devolución del equipo ${transactionResult.activo.tipo} (${transactionResult.activo.marca}).\n\nSaludos,\nEquipo VGI.`,
-          attachments: [
-            {
-              filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}_${Date.now()}.pdf`,
-              content: pdfBuffer,
-            },
-          ],
-        });
-        console.log('Correo de devolución enviado a', transactionResult.usuario.correo);
+    // Generar PDF y enviar correo en segundo plano
+    Promise.resolve().then(async () => {
+      try {
+        const pdfBuffer = await this.pdfService.generateReturnPdfMultiple([transactionResult]);
+        if (transactionResult.usuario.correo) {
+          await this.mailerService.sendMail({
+            to: transactionResult.usuario.correo,
+            subject: `Acta de Devolución de Activo`,
+            text: `Hola ${transactionResult.usuario.nombre},\n\nAdjuntamos el acta de devolución del equipo ${transactionResult.activo.tipo} (${transactionResult.activo.marca}).\n\nSaludos,\nEquipo VGI.`,
+            attachments: [
+              {
+                filename: `Acta_Devolucion_${transactionResult.usuario.dni || transactionResult.usuario_id}_${Date.now()}.pdf`,
+                content: pdfBuffer,
+              },
+            ],
+          });
+          console.log('Correo de devolución enviado a', transactionResult.usuario.correo);
+        }
+      } catch (err) {
+        console.error('Error al generar PDF o enviar correo de devolución', err);
       }
-    } catch (err) {
-      console.error('Error al generar PDF o enviar correo de devolución', err);
-    }
+    });
 
     return transactionResult;
   }
@@ -276,29 +281,32 @@ export class PrestamosService {
       return resultados;
     });
 
-    try {
-      const pdfBuffer = await this.pdfService.generateReturnPdfMultiple(transactionResult);
-      const equiposList = transactionResult
-        .map((p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`)
-        .join('\n- ');
-      
-      if (transactionResult[0].usuario.correo) {
-        await this.mailerService.sendMail({
-          to: transactionResult[0].usuario.correo,
-          subject: `Acta de Devolución de Activos - ${transactionResult.length} equipo(s)`,
-          text: `Hola ${transactionResult[0].usuario.nombre},\n\nAdjuntamos el acta de devolución de los siguientes equipos:\n- ${equiposList}\n\nSaludos,\nEquipo VGI.`,
-          attachments: [
-            {
-              filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}_${Date.now()}.pdf`,
-              content: pdfBuffer,
-            },
-          ],
-        });
-        console.log('Correo de devolución enviado a', transactionResult[0].usuario.correo);
+    // Generar PDF y enviar correo en segundo plano
+    Promise.resolve().then(async () => {
+      try {
+        const pdfBuffer = await this.pdfService.generateReturnPdfMultiple(transactionResult);
+        const equiposList = transactionResult
+          .map((p) => `${p.activo.tipo} ${p.activo.marca} (S/N: ${p.activo.serie})`)
+          .join('\n- ');
+        
+        if (transactionResult[0].usuario.correo) {
+          await this.mailerService.sendMail({
+            to: transactionResult[0].usuario.correo,
+            subject: `Acta de Devolución de Activos - ${transactionResult.length} equipo(s)`,
+            text: `Hola ${transactionResult[0].usuario.nombre},\n\nAdjuntamos el acta de devolución de los siguientes equipos:\n- ${equiposList}\n\nSaludos,\nEquipo VGI.`,
+            attachments: [
+              {
+                filename: `Acta_Devolucion_${transactionResult[0].usuario.dni || transactionResult[0].usuario_id}_${Date.now()}.pdf`,
+                content: pdfBuffer,
+              },
+            ],
+          });
+          console.log('Correo de devolución enviado a', transactionResult[0].usuario.correo);
+        }
+      } catch (err) {
+        console.error('Error al generar PDF o enviar correo de devolución', err);
       }
-    } catch (err) {
-      console.error('Error al generar PDF o enviar correo de devolución', err);
-    }
+    });
 
     return transactionResult;
   }
