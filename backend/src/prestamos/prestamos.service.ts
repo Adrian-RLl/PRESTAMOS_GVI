@@ -242,6 +242,7 @@ export class PrestamosService {
 
     const prestamos = await this.prisma.prestamo.findMany({
       where: { id: { in: prestamosIds } },
+      include: { activo: true },
     });
 
     if (prestamos.length !== prestamosIds.length) {
