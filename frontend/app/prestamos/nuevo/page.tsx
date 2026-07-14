@@ -401,7 +401,7 @@ export default function NuevaEntrega() {
             {tipoEntrega === 'prestamo' && (
               <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100">
                 <label className="block text-xs font-bold text-amber-800 mb-2 uppercase tracking-wide">Fecha Est. Devolución *</label>
-                <input type="date" value={fechaDevolucion} onChange={(e) => setFechaDevolucion(e.target.value)} className="w-full px-4 py-2.5 border border-amber-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 shadow-sm transition-all bg-white" />
+                <input type="date" value={fechaDevolucion} min={new Date().toISOString().split('T')[0]} onChange={(e) => setFechaDevolucion(e.target.value)} className="w-full px-4 py-2.5 border border-amber-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 shadow-sm transition-all bg-white" />
               </div>
             )}
           </div>

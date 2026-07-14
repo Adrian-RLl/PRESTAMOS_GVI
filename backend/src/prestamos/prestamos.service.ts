@@ -133,7 +133,7 @@ export class PrestamosService {
     return prestamo;
   }
 
-  async devolver(id: number, firma_devolucion: string, adminId: number) {
+  async devolver(id: number, firma_devolucion: string, adminId: number, observaciones?: string) {
     const prestamo = await this.findOne(id);
     if (prestamo.estado === 'Devuelto') {
       throw new BadRequestException('El préstamo ya fue devuelto.');
@@ -160,9 +160,23 @@ export class PrestamosService {
         },
       });
 
+      const updateActivoData: any = { estado: 'Disponible' };
+      
+      if (prestamo.activo.condicion === 'Nuevo') {
+        updateActivoData.condicion = 'Usado';
+      }
+
+      if (observaciones !== undefined && observaciones.trim() !== '') {
+        updateActivoData.observaciones = observaciones;
+        const obsLower = observaciones.toLowerCase();
+        if (obsLower.includes('daño') || obsLower.includes('inoperativo') || obsLower.includes('roto') || obsLower.includes('mal estado') || obsLower.includes('falla')) {
+          updateActivoData.estado = 'Baja';
+        }
+      }
+
       await prisma.activo.update({
         where: { id: prestamo.activo_id },
-        data: { estado: 'Disponible' },
+        data: updateActivoData,
       });
 
       return updatedPrestamo;
@@ -264,8 +278,17 @@ export class PrestamosService {
 
         const obs = observacionesActivos?.[p.id.toString()];
         const updateActivoData: any = { estado: 'Disponible' };
-        if (obs !== undefined) {
+        
+        if (p.activo.condicion === 'Nuevo') {
+          updateActivoData.condicion = 'Usado';
+        }
+
+        if (obs !== undefined && obs.trim() !== '') {
           updateActivoData.observaciones = obs;
+          const obsLower = obs.toLowerCase();
+          if (obsLower.includes('daño') || obsLower.includes('inoperativo') || obsLower.includes('roto') || obsLower.includes('mal estado') || obsLower.includes('falla')) {
+            updateActivoData.estado = 'Baja';
+          }
         }
 
         await prisma.activo.update({

@@ -25,6 +25,7 @@ export default function DevolverPrestamo() {
   const [loading, setLoading] = useState(false);
   const [prestamo, setPrestamo] = useState<Prestamo | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [observaciones, setObservaciones] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -58,7 +59,8 @@ export default function DevolverPrestamo() {
 
     try {
       await api.post(`/prestamos/${params.id}/devolver`, {
-        firma_devolucion: firmaDevolucion
+        firma_devolucion: firmaDevolucion,
+        observaciones: observaciones
       });
       toast.success("Devolución registrada exitosamente.");
       router.push('/prestamos');
@@ -142,6 +144,22 @@ export default function DevolverPrestamo() {
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">Dibuja la firma en el recuadro superior para confirmar la devolución en buen estado.</p>
+              </div>
+
+              <div className="space-y-2 mt-6">
+                <label className="text-sm font-medium text-slate-700">
+                  Observaciones (Opcional)
+                </label>
+                <textarea 
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  placeholder="Ej. Equipo inoperativo, pantalla con daño, etc."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm resize-none"
+                ></textarea>
+                <p className="text-xs text-slate-500">
+                  Nota: Si incluyes palabras como "daño", "inoperativo" o "roto", el equipo pasará automáticamente a estado de Baja.
+                </p>
               </div>
             </div>
           </div>

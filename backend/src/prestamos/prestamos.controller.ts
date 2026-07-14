@@ -98,10 +98,11 @@ export class PrestamosController {
   devolver(
     @Param('id') id: string,
     @Body('firma_devolucion') firma_devolucion: string,
+    @Body('observaciones') observaciones: string,
     @Req() req: any,
   ) {
     const adminId = req.user.sub;
-    return this.prestamosService.devolver(+id, firma_devolucion, adminId);
+    return this.prestamosService.devolver(+id, firma_devolucion, adminId, observaciones);
   }
 
   @Roles(1)
