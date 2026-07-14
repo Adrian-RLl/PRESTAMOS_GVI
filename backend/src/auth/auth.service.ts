@@ -155,7 +155,8 @@ export class AuthService {
       },
     });
 
-    const url = `http://localhost:3000/restablecer-contrasena?token=${token}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const url = `${frontendUrl}/restablecer-contrasena?token=${token}`;
 
     try {
       await this.mailerService.sendMail({
