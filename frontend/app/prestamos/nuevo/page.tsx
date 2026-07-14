@@ -195,9 +195,15 @@ export default function NuevaEntrega() {
       setError('Agregue al menos un activo.');
       return;
     }
-    if (tipoEntrega === 'prestamo' && !fechaDevolucion) {
-      setError('Especifique la fecha estimada de devolución.');
-      return;
+    if (tipoEntrega === 'prestamo') {
+      if (!fechaDevolucion) {
+        setError('Especifique la fecha estimada de devolución.');
+        return;
+      }
+      if (fechaDevolucion < fechaEntrega) {
+        setError('La fecha de devolución no puede ser anterior a la fecha de entrega.');
+        return;
+      }
     }
 
     const prestamoData = {

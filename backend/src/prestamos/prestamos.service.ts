@@ -26,6 +26,19 @@ export class PrestamosService {
       throw new BadRequestException('Algunos activos no existen.');
     }
 
+    if (createPrestamoDto.fecha_devolucion) {
+      const pDate = new Date(createPrestamoDto.fecha_prestamo);
+      const dDate = new Date(createPrestamoDto.fecha_devolucion);
+      
+      // Normalizar a fechas sin hora para comparar correctamente
+      pDate.setHours(0, 0, 0, 0);
+      dDate.setHours(0, 0, 0, 0);
+      
+      if (dDate < pDate) {
+        throw new BadRequestException('La fecha de devolución no puede ser anterior a la fecha de préstamo.');
+      }
+    }
+
     for (const activo of activos) {
       if (activo.estado !== 'Disponible') {
         throw new BadRequestException(
