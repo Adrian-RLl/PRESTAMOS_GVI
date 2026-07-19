@@ -173,7 +173,7 @@ export default function FirmaPrestamo() {
                 canvasProps={{className: 'w-full h-64 cursor-crosshair'}} 
                 penColor="black"
               />
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-2 right-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <button type="button" onClick={clearSignature} className="bg-white text-slate-500 hover:text-red-500 px-3 py-1 rounded-lg text-sm shadow-sm border border-slate-200 font-medium transition-colors">
                   Limpiar
                 </button>

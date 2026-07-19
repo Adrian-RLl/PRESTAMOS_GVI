@@ -9,8 +9,7 @@ import { useRouter } from 'next/navigation';
 
 const roles = [
   { id: 1, nombre: 'Administrador' },
-  { id: 2, nombre: 'Analista TI' },
-  { id: 3, nombre: 'Usuario' }
+  { id: 2, nombre: 'Analista TI' }
 ];
 
 export default function UsuariosCatalog() {
@@ -38,10 +37,9 @@ export default function UsuariosCatalog() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Usuario | null>(null);
   const [formData, setFormData] = useState({ 
-    nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
+    nombre: '', correo: '', username: '', rol_id: 3, activo: true,
     empresa_id: '', area_id: '', cargo_id: '', gerencia_id: '', sede_id: '' 
   });
-  const [changePassword, setChangePassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -80,11 +78,10 @@ export default function UsuariosCatalog() {
   );
 
   const openModal = (item?: Usuario) => {
-    setChangePassword(false);
     if (item) {
       setEditingItem(item);
       setFormData({ 
-        nombre: item.nombre, correo: item.correo, contraseña: '', rol_id: item.rol_id, activo: item.activo,
+        nombre: item.nombre, correo: item.correo, username: item.username || '', rol_id: item.rol_id, activo: item.activo,
         empresa_id: item.empresa_id ? String(item.empresa_id) : '',
         area_id: item.area_id ? String(item.area_id) : '',
         cargo_id: item.cargo_id ? String(item.cargo_id) : '',
@@ -94,7 +91,7 @@ export default function UsuariosCatalog() {
     } else {
       setEditingItem(null);
       setFormData({ 
-        nombre: '', correo: '', contraseña: '', rol_id: 3, activo: true,
+        nombre: '', correo: '', username: '', rol_id: 1, activo: true,
         empresa_id: '', area_id: '', cargo_id: '', gerencia_id: '', sede_id: '' 
       });
     }
@@ -109,6 +106,7 @@ export default function UsuariosCatalog() {
       const payload: any = {
         nombre: formData.nombre,
         correo: formData.correo,
+        username: formData.username,
         rol_id: Number(formData.rol_id),
         activo: formData.activo,
         empresa_id: formData.empresa_id ? Number(formData.empresa_id) : null,
@@ -117,10 +115,6 @@ export default function UsuariosCatalog() {
         gerencia_id: formData.gerencia_id ? Number(formData.gerencia_id) : null,
         sede_id: formData.sede_id ? Number(formData.sede_id) : null,
       };
-
-      if (formData.contraseña) {
-        payload.contraseña = formData.contraseña;
-      }
 
       if (editingItem) {
         await api.patch(`/usuarios/${editingItem.id}`, payload);
@@ -200,6 +194,7 @@ export default function UsuariosCatalog() {
                   <td className="p-4">
                     <div className="font-medium text-slate-800">{item.nombre}</div>
                     <div className="text-sm text-slate-500">{item.correo}</div>
+                    <div className="text-xs text-blue-600 mt-0.5">Usuario: {item.username || '-'}</div>
                   </td>
                   <td className="p-4 text-slate-600">
                     {item.empresa ? item.empresa.nombre : <span className="text-slate-400 italic">No asignada</span>}
@@ -270,6 +265,13 @@ export default function UsuariosCatalog() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre de Usuario <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico <span className="text-red-500">*</span></label>
                     <input 
                       type="email" value={formData.correo} onChange={(e) => setFormData({...formData, correo: e.target.value})}
@@ -285,43 +287,14 @@ export default function UsuariosCatalog() {
                       {roles.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                     </select>
                   </div>
-                  {!editingItem && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña <span className="text-red-500">*</span></label>
-                      <input 
-                        type="password" value={formData.contraseña} onChange={(e) => setFormData({...formData, contraseña: e.target.value})}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
-                        required
-                      />
-                    </div>
-                  )}
                 </div>
 
-                {editingItem && (
-                  <div className="mt-4 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-                    <div className="flex items-center space-x-3 cursor-pointer" onClick={() => {
-                        const newVal = !changePassword;
-                        setChangePassword(newVal);
-                        if (!newVal) setFormData({...formData, contraseña: ''});
-                      }}>
-                      <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${changePassword ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
-                        {changePassword && <Check size={14} className="text-white" />}
-                      </div>
-                      <label className="text-sm font-semibold text-slate-700 cursor-pointer select-none">Actualizar Contraseña</label>
-                    </div>
-                    {changePassword && (
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Nueva Contraseña <span className="text-red-500">*</span></label>
-                        <input 
-                          type="password" 
-                          value={formData.contraseña} 
-                          onChange={(e) => setFormData({...formData, contraseña: e.target.value})}
-                          placeholder="Ingresa la nueva contraseña"
-                          className="w-full md:w-1/2 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
-                          required
-                        />
-                      </div>
-                    )}
+                {!editingItem && (
+                  <div className="mt-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
+                    <AlertCircle className="text-blue-500 w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-blue-800">
+                      <strong>Nota de Seguridad:</strong> Se enviará un correo automático a este usuario con un enlace para que configure su propia contraseña. El enlace expirará en 24 horas.
+                    </p>
                   </div>
                 )}
               </div>

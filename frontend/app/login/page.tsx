@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import Link from 'next/link';
 
 export default function LoginPage() {
-  const [correo, setCorreo] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,11 +18,11 @@ export default function LoginPage() {
   // Estado del Temporizador de Bloqueo
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
-  // Cargar Correo Recordado
+  // Cargar Username Recordado
   useEffect(() => {
-    const savedCorreo = localStorage.getItem('remember_correo');
-    if (savedCorreo) {
-      setCorreo(savedCorreo);
+    const savedUsername = localStorage.getItem('remember_username');
+    if (savedUsername) {
+      setUsername(savedUsername);
       setRememberMe(true);
     }
   }, []);
@@ -57,18 +57,12 @@ export default function LoginPage() {
     setError('');
 
     // Validaciones manuales
-    if (!correo.trim() && !password.trim()) {
-      setError('Por favor, ingresa tu correo electrónico y tu contraseña.');
+    if (!username.trim() && !password.trim()) {
+      setError('Por favor, ingresa tu nombre de usuario y tu contraseña.');
       return;
     }
-    if (!correo.trim()) {
-      setError('El correo electrónico es obligatorio.');
-      return;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(correo)) {
-      setError('Por favor, ingresa un correo electrónico válido.');
+    if (!username.trim()) {
+      setError('El nombre de usuario es obligatorio.');
       return;
     }
 
@@ -81,16 +75,16 @@ export default function LoginPage() {
 
     try {
       const response = await api.post('/auth/login', {
-        correo,
+        username,
         contraseña: password,
       });
 
       if (response.data.token) {
-        // Guardar correo si se seleccionó "Recordarme"
+        // Guardar username si se seleccionó "Recordarme"
         if (rememberMe) {
-          localStorage.setItem('remember_correo', correo);
+          localStorage.setItem('remember_username', username);
         } else {
-          localStorage.removeItem('remember_correo');
+          localStorage.removeItem('remember_username');
         }
         login(response.data.token, response.data.usuario);
       }
@@ -186,25 +180,25 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-4">
-            {/* Campo Correo Electrónico */}
+            {/* Campo Username */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Correo Electrónico
+                Nombre de Usuario
               </label>
               
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                  <Mail size={18} />
+                  <ShieldCheck size={18} />
                 </div>
                 
                 <input 
-                  type="email" 
+                  type="text" 
                   disabled={loading || lockoutSeconds > 0}
-                  value={correo}
-                  onChange={(e) => setCorreo(e.target.value)}
-                  placeholder="usuario@ejemplo.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="adminvgi"
                   className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-slate-950/60 text-white outline-none transition-all login-input ${
-                    error && !correo.trim() 
+                    error && !username.trim() 
                       ? 'border-rose-500/50 focus:ring-2 focus:ring-rose-500 focus:border-transparent' 
                       : 'border-white/10 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -231,7 +225,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className={`w-full pl-11 pr-11 py-3.5 rounded-xl border bg-slate-950/60 text-white outline-none transition-all login-input ${
-                    error && !password.trim() && correo.trim()
+                    error && !password.trim() && username.trim()
                       ? 'border-rose-500/50 focus:ring-2 focus:ring-rose-500 focus:border-transparent' 
                       : 'border-white/10 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}

@@ -58,6 +58,7 @@ model TipoActivo {
 
 model Usuario {
   id               Int        @id @default(autoincrement())
+  username         String?    @unique
   dni              String?    @unique
   nombre           String     // Mantendremos este como 'Nombre Completo'
   nombres          String?

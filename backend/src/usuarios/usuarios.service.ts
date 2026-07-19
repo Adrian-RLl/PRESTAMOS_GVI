@@ -1,10 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mailerService: MailerService,
+  ) {}
 
   async findByEmail(correo: string) {
     return this.prisma.usuario.findUnique({
@@ -29,6 +34,20 @@ export class UsuariosService {
   async findOne(id: number) {
     return this.prisma.usuario.findUnique({
       where: { id },
+      include: {
+        rol: true,
+        empresa: true,
+        area: true,
+        cargo: true,
+        gerencia: true,
+        sede: true,
+      },
+    });
+  }
+
+  async findByUsername(username: string) {
+    return this.prisma.usuario.findUnique({
+      where: { username },
       include: {
         rol: true,
         empresa: true,
@@ -125,9 +144,27 @@ export class UsuariosService {
       data.cargo_id = res.id;
     }
 
-    const hash = await bcrypt.hash(data.contraseña, 10);
+    if (data.rol_id === 1 || data.rol_id === 2) {
+      if (!data.username || data.username.trim() === '') {
+        throw new BadRequestException('El nombre de usuario es obligatorio para cuentas de sistema.');
+      }
+      const existingUser = await this.findByUsername(data.username);
+      if (existingUser) {
+        throw new BadRequestException('El nombre de usuario ya está en uso.');
+      }
+    }
 
-    return this.prisma.usuario.create({
+    const tempPassword = crypto.randomBytes(16).toString('hex');
+    const hash = await bcrypt.hash(tempPassword, 10);
+
+    let token: string | null = null;
+    let expira: Date | null = null;
+    if ((data.rol_id === 1 || data.rol_id === 2) && data.correo) {
+      token = crypto.randomBytes(32).toString('hex');
+      expira = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas para configurarla
+    }
+
+    const newUser = await this.prisma.usuario.create({
       data: {
         dni: data.dni,
         nombre: data.nombre,
@@ -141,15 +178,49 @@ export class UsuariosService {
         celular_empresa: data.celular_empresa,
         genero: data.genero,
         contraseña: hash,
+        username: data.username || null,
         rol_id: data.rol_id,
         empresa_id: data.empresa_id ? Number(data.empresa_id) : null,
         area_id: data.area_id ? Number(data.area_id) : null,
         cargo_id: data.cargo_id ? Number(data.cargo_id) : null,
         gerencia_id: data.gerencia_id ? Number(data.gerencia_id) : null,
         sede_id: data.sede_id ? Number(data.sede_id) : null,
+        recuperar_token: token,
+        recuperar_expira: expira,
         activo: data.activo ?? true,
       },
     });
+
+    if (token && data.correo) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const url = `${frontendUrl}/restablecer-contrasena?token=${token}`;
+      try {
+        await this.mailerService.sendMail({
+          to: data.correo,
+          subject: 'Bienvenido - Configura tu contraseña',
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 25px; background-color: #0f172a; color: #f8fafc; min-height: 400px; display: flex; align-items: center; justify-content: center;">
+              <div style="max-width: 550px; width: 100%; background-color: #1e293b; padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);">
+                <div style="text-align: center; margin-bottom: 25px;">
+                  <div style="display: inline-flex; justify-content: center; items-center; width: 60px; height: 60px; rounded-full bg-blue-600; border-radius: 50%; background: #2563eb; color: white; line-height: 60px; font-size: 24px; font-weight: bold; margin: 0 auto;">V</div>
+                </div>
+                <h2 style="color: #ffffff; text-align: center; margin-top: 0; font-size: 24px; font-weight: bold;">Configura tu Contraseña</h2>
+                <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-top: 20px;">Hola, <strong>${data.nombre}</strong>.</p>
+                <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">Se ha creado tu cuenta (Usuario: <strong>${data.username}</strong>) en el sistema de Préstamos VGI.</p>
+                <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">Haz clic en el siguiente botón para crear tu contraseña inicial. Este enlace es válido por 24 horas:</p>
+                <div style="margin: 35px 0; text-align: center;">
+                  <a href="${url}" style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; padding: 14px 30px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">Configurar Contraseña</a>
+                </div>
+              </div>
+            </div>
+          `,
+        });
+      } catch (err) {
+        console.error('No se pudo enviar el correo de configuración de contraseña:', err);
+      }
+    }
+
+    return newUser;
   }
 
   async createBatch(dataArray: any[]) {

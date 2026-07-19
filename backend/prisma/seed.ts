@@ -44,6 +44,7 @@ async function main() {
       data: {
         nombre: 'Administrador VGI',
         correo: 'admin@vanguardfresh.pe',
+        username: 'adminvgi',
         contraseña: hashPassword,
         rol_id: adminRol.id,
         empresa_id: empresa.id,
@@ -52,6 +53,7 @@ async function main() {
       }
     });
     console.log('✅ Usuario Administrador creado exitosamente.');
+    console.log('Username: adminvgi');
     console.log('Correo: admin@vanguardfresh.pe');
     console.log('Contraseña: admin123');
   } else {

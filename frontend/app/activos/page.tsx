@@ -2,7 +2,7 @@
 
 import { toast } from 'react-hot-toast';
 import { useEffect, useState, Fragment } from 'react';
-import { PlusCircle, Edit, Trash2, Download, ArrowUpDown, Search } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Download, ArrowUpDown, Search, X, Clock, User, Calendar } from 'lucide-react';
 import { api, Activo } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
@@ -15,6 +15,11 @@ export default function ActivosPage() {
 
   const [activos, setActivos] = useState<Activo[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // History Modal State
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyData, setHistoryData] = useState<any>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // General Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,6 +71,21 @@ export default function ActivosPage() {
         console.error("Error deleting activo", error);
         toast.error("No se pudo eliminar el activo.");
       }
+    }
+  };
+
+  const openHistory = async (id: number) => {
+    setHistoryModalOpen(true);
+    setHistoryLoading(true);
+    try {
+      const response = await api.get(`/activos/${id}/historial`);
+      setHistoryData(response.data);
+    } catch (error) {
+      console.error("Error fetching history", error);
+      toast.error("No se pudo cargar el historial.");
+      setHistoryModalOpen(false);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -320,7 +340,7 @@ export default function ActivosPage() {
                     const pActivo = activo.prestamos?.find(p => p.estado === 'Activo');
                     
                     return (
-                    <tr key={activo.id} className="hover:bg-slate-50 transition-colors group">
+                    <tr key={activo.id} onClick={() => openHistory(activo.id)} className="cursor-pointer hover:bg-slate-50 transition-colors group">
                       <td className="p-4 font-medium text-slate-700">{activo.serie}</td>
                       <td className="p-4 font-bold text-slate-800">{activo.tipo}</td>
                       <td className="p-4 text-slate-600">{activo.marca}</td>
@@ -352,12 +372,12 @@ export default function ActivosPage() {
                       </td>
                       {canEdit && (
                         <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Link href={`/activos/editar/${activo.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block" title="Editar">
+                          <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                            <Link href={`/activos/editar/${activo.id}`} onClick={(e) => e.stopPropagation()} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-block" title="Editar">
                               <Edit size={18} />
                             </Link>
                             {canDelete && (
-                              <button onClick={() => deleteActivo(activo.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                              <button onClick={(e) => { e.stopPropagation(); deleteActivo(activo.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
                                 <Trash2 size={18} />
                               </button>
                             )}
@@ -440,6 +460,110 @@ export default function ActivosPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* History Modal */}
+      {historyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <div>
+                <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                  <Clock size={20} className="text-blue-500" />
+                  Historial del Activo
+                </h3>
+                {!historyLoading && historyData && (
+                  <p className="text-sm text-slate-500 mt-1">
+                    {historyData.tipo} {historyData.marca} {historyData.modelo} (SN: {historyData.serie})
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setHistoryModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6 bg-slate-50/50">
+              {historyLoading ? (
+                <div className="flex justify-center items-center h-48">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                </div>
+              ) : historyData?.prestamos?.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-3">
+                  <Clock size={40} className="text-slate-300" />
+                  <p>Este activo no tiene historial de préstamos.</p>
+                </div>
+              ) : (
+                <div className="relative border-l-2 border-blue-100 ml-4 space-y-8 pb-4">
+                  {historyData?.prestamos?.map((prestamo: any, index: number) => (
+                    <div key={prestamo.id} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
+                        prestamo.estado === 'Activo' ? 'bg-emerald-500' : 'bg-slate-400'
+                      }`} />
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                              prestamo.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {prestamo.estado}
+                            </span>
+                            <span className="text-xs text-slate-400 font-mono">ID: #{prestamo.id}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-slate-500 font-medium">
+                            <Calendar size={14} />
+                            {new Date(prestamo.fecha_prestamo).toLocaleDateString('es-PE', { timeZone: 'UTC' })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Asignado a</div>
+                            <div className="flex items-start gap-2">
+                              <User size={16} className="text-slate-400 mt-0.5" />
+                              <div>
+                                <div className="font-bold text-slate-700">{prestamo.usuario?.nombre}</div>
+                                <div className="text-xs text-slate-500">
+                                  {prestamo.usuario?.cargo?.nombre} • {prestamo.usuario?.area?.nombre}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <div className="text-xs text-slate-400 font-medium mb-1 uppercase tracking-wider">Detalles de Entrega</div>
+                            <div className="text-sm text-slate-600">
+                              <span className="font-medium">Emisor:</span> {prestamo.usuario_emisor?.nombre || '-'}
+                            </div>
+                            {prestamo.fecha_devolucion && (
+                              <>
+                                <div className="text-xs text-slate-400 font-medium mb-1 mt-2 uppercase tracking-wider">Detalles de Devolución</div>
+                                <div className="text-sm text-slate-600">
+                                  <span className="font-medium">Fecha:</span> {new Date(prestamo.fecha_devolucion).toLocaleDateString('es-PE', { timeZone: 'UTC' })}
+                                </div>
+                                <div className="text-sm text-slate-600">
+                                  <span className="font-medium">Receptor:</span> {prestamo.usuario_receptor?.nombre || '-'}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-white flex justify-end">
+              <button 
+                onClick={() => setHistoryModalOpen(false)}
+                className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

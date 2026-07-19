@@ -177,7 +177,6 @@ export default function RecuperarPage() {
                 <ul className="text-xs text-slate-400 space-y-2 list-disc pl-4">
                   <li>Revisa tu correo corporativo (incluyendo spam o no deseados).</li>
                   <li>El enlace de recuperación expira en <span className="text-white font-semibold">30 minutos</span>.</li>
-                  <li>Si estás en modo de desarrollo local, el link se ha impreso también en la consola del backend.</li>
                 </ul>
               </div>
             </div>

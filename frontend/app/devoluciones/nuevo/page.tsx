@@ -349,7 +349,7 @@ export default function NuevaDevolucion() {
                 canvasProps={{className: 'w-full h-64 cursor-crosshair'}} 
                 penColor="black"
               />
-              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-3 right-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <button 
                   type="button" 
                   onClick={clearSignature} 

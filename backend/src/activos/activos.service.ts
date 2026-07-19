@@ -153,6 +153,28 @@ export class ActivosService {
     });
   }
 
+  async findHistorial(id: number) {
+    const activo = await this.prisma.activo.findUnique({
+      where: { id },
+      include: {
+        prestamos: {
+          orderBy: { fecha_prestamo: 'desc' },
+          include: {
+            usuario: { select: { nombre: true, dni: true, cargo: { select: { nombre: true } }, area: { select: { nombre: true } } } },
+            usuario_emisor: { select: { nombre: true } },
+            usuario_receptor: { select: { nombre: true } },
+          },
+        },
+      },
+    });
+
+    if (!activo) {
+      throw new NotFoundException(`Activo con ID ${id} no encontrado`);
+    }
+
+    return activo;
+  }
+
   async remove(id: number) {
     const activo = await this.findOne(id); // Verifica si existe
 

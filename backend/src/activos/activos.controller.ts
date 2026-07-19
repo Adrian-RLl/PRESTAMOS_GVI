@@ -67,4 +67,10 @@ export class ActivosController {
   remove(@Param('id') id: string) {
     return this.activosService.remove(+id);
   }
+
+  @Roles(1, 2, 3)
+  @Get(':id/historial')
+  getHistorial(@Param('id') id: string) {
+    return this.activosService.findHistorial(+id);
+  }
 }
