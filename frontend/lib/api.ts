@@ -69,6 +69,7 @@ export interface Usuario {
   dni?: string;
   nombre: string;
   correo: string;
+  username?: string;
   rol_id: number;
   activo: boolean;
   empresa_id?: number;
