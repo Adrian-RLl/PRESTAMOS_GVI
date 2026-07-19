@@ -196,7 +196,7 @@ export default function LoginPage() {
                   disabled={loading || lockoutSeconds > 0}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="adminvgi"
+                  placeholder="Ej. jperez"
                   className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-slate-950/60 text-white outline-none transition-all login-input ${
                     error && !username.trim() 
                       ? 'border-rose-500/50 focus:ring-2 focus:ring-rose-500 focus:border-transparent' 
